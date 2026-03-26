@@ -37,6 +37,9 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
     Route::delete('/sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
     Route::delete('/sessions/{session}/recursive', [SessionController::class, 'destroyRecursive'])->name('sessions.destroyRecursive');
+
+    Route::patch('/pacientes/{patient}/baixar-mes', [PatientController::class, 'marcarMesComoPago'])->name('patients.payMonth');
+    Route::patch('/pacientes/{patient}/estornar-mes', [PatientController::class, 'estornarMes'])->name('patients.refundMonth');
 });
 
 
