@@ -78,4 +78,19 @@ class SessionController extends Controller
 
         return redirect()->back()->with('success', 'Recorrência removida sem afetar sessões avulsas!');
     }
+    public function markPerformed($id) // Recebendo o ID diretamente para garantir
+    {
+        $session = \App\Models\PatientSession::findOrFail($id);
+        
+        $session->performed = true;
+        $session->save(); // Forçando o save manual
+
+        return redirect()->route('dashboard')->with('success', 'Sessão de ' . $session->patient->name . ' realizada!');
+    }
+        public function reversePerformed(\App\Models\PatientSession $session)
+    {
+        $session->update(['performed' => false]);
+
+        return redirect()->back()->with('success', 'Status de atendimento revertido!');
+    }
 }

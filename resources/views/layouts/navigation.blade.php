@@ -12,10 +12,10 @@
                    <span class="mr-2">👥</span> Pacientes
                 </a>
 
-                <a href="#" 
-                   class="flex items-center px-4 py-2 text-psico-text hover:bg-white/30 rounded-full transition">
-                   <span class="mr-2">📄</span> Relatórios
-                </a>
+               <a href="{{ route('reports.index') }}" 
+                  class="flex items-center px-4 py-2 text-psico-text hover:bg-white/30 rounded-full transition {{ request()->routeIs('reports.index') ? 'bg-[#E2B1B9] shadow-inner font-bold' : '' }}">
+                  <span class="mr-2">📈</span> Relatórios
+               </a>
 
                 <a href="#" 
                    class="flex items-center px-4 py-2 text-psico-text hover:bg-white/30 rounded-full transition">

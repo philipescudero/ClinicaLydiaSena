@@ -17,7 +17,8 @@ class PatientSession extends Model
         'value', 
         'notes', 
         'status',
-        'is_recurrent'
+        'is_recurrent',
+        'performed'
     ];
 
     public function patient()
