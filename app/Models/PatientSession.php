@@ -6,10 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatientSession extends Model
 {
-    // Indica a tabela correta (que renomeamos antes)
     protected $table = 'patient_sessions';
 
-    // CAMPOS LIBERADOS PARA SALVAR (O erro foi por falta disso aqui)
     protected $fillable = [
         'patient_id', 
         'session_date',
@@ -19,6 +17,11 @@ class PatientSession extends Model
         'status',
         'is_recurrent',
         'performed'
+    ];
+
+    // ADICIONE ESTA PARTE ABAIXO
+    protected $casts = [
+        'session_date' => 'datetime',
     ];
 
     public function patient()

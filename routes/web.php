@@ -31,6 +31,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/pacientes', [PatientController::class, 'index'])->name('pacientes');
     Route::get('/pacientes/novo', [PatientController::class, 'create'])->name('patients.create');
     Route::post('/pacientes/salvar', [PatientController::class, 'store'])->name('patients.store');
+    Route::post('/sessions/fast-store', [SessionController::class, 'storeFast'])->name('sessions.store_fast');
     
     Route::get('/pacientes/{patient}/editar', [PatientController::class, 'edit'])->name('patients.edit');
     Route::put('/pacientes/{patient}', [PatientController::class, 'update'])->name('patients.update');
