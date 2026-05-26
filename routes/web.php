@@ -6,53 +6,128 @@ use App\Http\Controllers\PatientController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ProgressNoteController;
+use App\Http\Controllers\TreatmentPlanController;
+use App\Http\Controllers\AnamneseInfantilController;
+use App\Http\Controllers\AdultAnamnesisController;
+use App\Http\Controllers\AdultNeuroAnamnesisController;
+use App\Http\Controllers\ChildPsicoAnamnesisController;
+use App\Http\Controllers\PatientAreaController;
+use App\Http\Controllers\SettingController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
-// CORREÇÃO AQUI: DashboardController::class em vez de DashboardController.php
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+// --- AJUSTE AQUI: Redireciona a raiz direto para a tela de login ---
+Route::redirect('/', '/login');
 
 Route::middleware('auth')->group(function () {
+    
+    /**
+     * AREA DO PACIENTE & PERFIL 
+     * Acessível por todos os usuários autenticados
+     */
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('/relatorios', [ReportController::class, 'index'])->name('reports.index');
     
-    // Removi a duplicata da rota sessions.store que estava aqui
-    Route::post('/pacientes/{patient}/sessoes', [SessionController::class, 'store'])->name('sessions.store');
-});
+    // Se for paciente, ele cai aqui
+    Route::get('/meu-espaco', [PatientAreaController::class, 'index'])->name('patient.area');
+    // Futura rota do extrato do paciente
+    // Route::get('/meu-extrato', [PatientAreaController::class, 'index'])->name('patient.area');
 
-# ROTA DE PACIENTES
-Route::middleware(['auth'])->group(function () {
-    Route::get('/pacientes', [PatientController::class, 'index'])->name('pacientes');
-    Route::get('/pacientes/novo', [PatientController::class, 'create'])->name('patients.create');
-    Route::post('/pacientes/salvar', [PatientController::class, 'store'])->name('patients.store');
-    Route::post('/sessions/fast-store', [SessionController::class, 'storeFast'])->name('sessions.store_fast');
-    
-    Route::get('/pacientes/{patient}/editar', [PatientController::class, 'edit'])->name('patients.edit');
-    Route::put('/pacientes/{patient}', [PatientController::class, 'update'])->name('patients.update');
-    Route::delete('/pacientes/{patient}', [PatientController::class, 'destroy'])->name('patients.destroy');
+    /**
+     * AREA OPERACIONAL (ADMIN)
+     * Protegida pela regra 'admin-only' definida no AuthServiceProvider
+     */
+    Route::middleware(['auth'])->group(function () {  
+        
+        // Dashboard Principal
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        // Validação do PIN Clínico via AJAX
+        Route::post('/verificar-pin-clinico', [SettingController::class, 'verifyClinicalPin'])->name('settings.pin.verify');
+        
+        // Relatórios Gerais
+        Route::get('/relatorios', [ReportController::class, 'index'])->name('reports.index');
 
-    Route::get('/pacientes/{patient}', [PatientController::class, 'show'])->name('patients.show');
-    
-    // Sessões e Status
-    // Adicione esta linha junto com as outras rotas de sessões
-    Route::patch('/sessoes/{session}/realizado', [SessionController::class, 'markPerformed'])->name('sessions.markPerformed');
-    Route::patch('/sessoes/{session}/status', [SessionController::class, 'updateStatus'])->name('sessions.updateStatus');
-    Route::patch('/sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
-    Route::delete('/sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
-    Route::delete('/sessions/{session}/recursive', [SessionController::class, 'destroyRecursive'])->name('sessions.destroyRecursive');
-    Route::patch('/sessoes/{session}/reverter-realizado', [SessionController::class, 'reversePerformed'])->name('sessions.reversePerformed');
-    // Financeiro e WhatsApp
-    Route::patch('/pacientes/{patient}/baixar-mes', [PatientController::class, 'marcarMesComoPago'])->name('patients.payMonth');
-    Route::patch('/pacientes/{patient}/estornar-mes', [PatientController::class, 'estornarMes'])->name('patients.refundMonth');
-    
-    // Nova rota para o Log do WhatsApp
-    Route::post('/pacientes/{patient}/mark-whatsapp-sent', [PatientController::class, 'markWhatsappSent'])->name('patients.markWhatsappSent');
+        # --- GRUPO DE PACIENTES ---
+        // 1. Rotas Estáticas
+        Route::get('/pacientes', [PatientController::class, 'index'])->name('pacientes');
+        Route::get('/pacientes/relatorio-pdf', [PatientController::class, 'gerarRelatorioPdf'])->name('patients.relatorioPdf');
+        Route::get('/pacientes/novo', [PatientController::class, 'create'])->name('patients.create');
+        Route::post('/pacientes/salvar', [PatientController::class, 'store'])->name('patients.store');
+        Route::post('/sessions/fast-store', [SessionController::class, 'storeFast'])->name('sessions.store_fast');
+
+        // 2. Rotas Dinâmicas de Pacientes
+        Route::get('/pacientes/{patient}', [PatientController::class, 'show'])->name('patients.show');
+        Route::get('/pacientes/{patient}/editar', [PatientController::class, 'edit'])->name('patients.edit');
+        Route::put('/pacientes/{patient}', [PatientController::class, 'update'])->name('patients.update');
+        Route::delete('/pacientes/{patient}', [PatientController::class, 'destroy'])->name('patients.destroy');
+        
+        // 3. Ações Financeiras e Log
+        Route::patch('/pacientes/{patient}/baixar-mes', [PatientController::class, 'marcarMesComoPago'])->name('patients.payMonth');
+        Route::patch('/pacientes/{patient}/estornar-mes', [PatientController::class, 'estornarMes'])->name('patients.refundMonth');
+        Route::post('/pacientes/{patient}/mark-whatsapp-sent', [PatientController::class, 'markWhatsappSent'])->name('patients.markWhatsappSent');
+
+        # --- SESSÕES E NOTAS ---
+        // ... (Mantidas as rotas internas de sessões)
+        Route::put('/sessoes/{session}', [SessionController::class, 'update'])->name('sessions.update');
+        Route::post('/pacientes/{patient}/sessoes', [SessionController::class, 'store'])->name('sessions.store');
+        Route::post('/patients/{patient}/notes', [ProgressNoteController::class, 'store'])->name('notes.store');
+        Route::put('/notes/{note}', [ProgressNoteController::class, 'update'])->name('notes.update');
+        Route::delete('/notes/{note}', [ProgressNoteController::class, 'destroy'])->name('notes.destroy');
+
+        Route::patch('/sessoes/{session}/realizado', [SessionController::class, 'markPerformed'])->name('sessions.markPerformed');
+        Route::patch('/sessoes/{session}/reverter-realizado', [SessionController::class, 'reversePerformed'])->name('sessions.reversePerformed');
+        Route::patch('/sessoes/{session}/status', [SessionController::class, 'updateStatus'])->name('sessions.updateStatus');
+        Route::patch('/sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
+        Route::delete('/sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
+        Route::delete('/sessions/{session}/recursive', [SessionController::class, 'destroyRecursive'])->name('sessions.destroyRecursive');
+
+        # --- PLANO TERAPÊUTICO ---
+        Route::get('/pacientes/{patient}/plano-terapeutico', [TreatmentPlanController::class, 'index'])->name('patients.plan');
+        Route::post('/pacientes/{patient}/plano-terapeutico', [TreatmentPlanController::class, 'store'])->name('patients.plan.store');
+        Route::get('/pacientes/{patient}/plano-terapeutico-pdf', [TreatmentPlanController::class, 'exportPdf'])->name('patients.plan.pdf');
+        Route::put('/plano-terapeutico/{plan}', [TreatmentPlanController::class, 'update'])->name('patients.plan.update');
+        Route::delete('/plano-terapeutico/{plan}', [TreatmentPlanController::class, 'destroy'])->name('patients.plan.destroy');
+
+        # --- ANAMNESES ---
+        // Infantil Neuro
+        Route::get('/pacientes/{patient}/anamnese-neuro-infantil', [AnamneseInfantilController::class, 'index'])->name('anamnese.neuro.infantil');
+        Route::post('/pacientes/{patient}/anamnese-neuro-infantil', [AnamneseInfantilController::class, 'store'])->name('anamnese.neuro.infantil.store');
+        Route::get('/pacientes/{patient}/anamnese-pdf', [AnamneseInfantilController::class, 'exportPdf'])->name('anamnese.pdf');
+        Route::delete('/anamnese-neuro-infantil/{anamnesis}', [AnamneseInfantilController::class, 'destroy'])->name('anamnese.neuro.infantil.destroy');
+
+        // Adulto Neuro
+        Route::get('/pacientes/{patient}/anamnese-neuro-adulto', [AdultNeuroAnamnesisController::class, 'index'])->name('anamnese.neuro.adulto');
+        Route::post('/pacientes/{patient}/anamnese-neuro-adulto', [AdultNeuroAnamnesisController::class, 'store'])->name('anamnese.neuro.adulto.store');
+        Route::get('/pacientes/{patient}/anamnese-neuro-adulto-pdf', [AdultNeuroAnamnesisController::class, 'exportPdf'])->name('anamnese.neuro.adulto.pdf');
+        Route::delete('/anamnese-neuro-adulto/{id}', [AdultNeuroAnamnesisController::class, 'destroy'])->name('anamnese.neuro.adulto.destroy');
+
+        // Infantil Psico
+        Route::get('/pacientes/{patient}/anamnese-psico-infantil', [ChildPsicoAnamnesisController::class, 'index'])->name('anamnese.psico.infantil');
+        Route::post('/pacientes/{patient}/anamnese-psico-infantil', [ChildPsicoAnamnesisController::class, 'store'])->name('anamnese.psico.infantil.store');
+        Route::get('/pacientes/{patient}/anamnese-psico-infantil-pdf', [ChildPsicoAnamnesisController::class, 'exportPdf'])->name('anamnese.psico.infantil.pdf');
+        Route::delete('/anamnese-psico-infantil/{id}', [ChildPsicoAnamnesisController::class, 'destroy'])->name('anamnese.psico.infantil.destroy');
+
+        // Adulto Psico
+        Route::get('/pacientes/{patient}/anamnese-adulto', [AdultAnamnesisController::class, 'index'])->name('anamnese.psico.adulto');
+        Route::post('/pacientes/{patient}/anamnese-adulto', [AdultAnamnesisController::class, 'store'])->name('anamnese.psico.adulto.store');
+        Route::get('/pacientes/{patient}/anamnese-adulto-pdf', [AdultAnamnesisController::class, 'exportPdf'])->name('anamnese.psico.adulto.pdf');
+        Route::delete('/anamnese-adulto/{anamnesis}', [AdultAnamnesisController::class, 'destroy'])->name('anamnese.psico.adulto.destroy');
+
+        // Página principal de configurações
+        Route::get('/configuracoes', [SettingController::class, 'index'])->name('settings.index');
+
+        // Ação de trocar senha em massa
+        Route::post('/configuracoes/senha-global', [SettingController::class, 'updateGlobalPassword'])
+            ->name('settings.password.global');
+
+        Route::get('/configuracoes/clinica', [SettingController::class, 'editClinic'])->name('settings.clinic.edit');
+        Route::post('/configuracoes/clinica', [SettingController::class, 'updateClinicData'])->name('settings.clinic.update');
+        
+        Route::get('/configuracoes/equipe', [SettingController::class, 'indexAdmins'])->name('settings.admins.index');
+        Route::post('/configuracoes/equipe', [SettingController::class, 'storeAdmin'])->name('settings.admins.store');
+        Route::delete('/configuracoes/equipe/{id}', [SettingController::class, 'destroyAdmin'])->name('settings.admins.destroy');
+        Route::get('/configuracoes/backup', [SettingController::class, 'generateBackup'])->name('settings.backup');
+    });
 });
 
 require __DIR__.'/auth.php';

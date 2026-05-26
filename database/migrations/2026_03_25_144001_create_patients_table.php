@@ -9,13 +9,14 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+   public function up(): void
     {
         Schema::create('patients', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->nullable();
-            $table->string('cpf')->nullable();
+            // Mudança aqui: unique() garante a integridade total
+            $table->string('cpf')->unique()->nullable(); 
             $table->string('phone')->nullable();
             $table->date('birth_date')->nullable();
             $table->string('city_state')->nullable();

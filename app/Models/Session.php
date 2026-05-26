@@ -15,6 +15,10 @@ class Session extends Model
         'status'
     ];
 
+    protected $casts = [
+        'session_date' => 'datetime',
+    ];
+
     public function patient()
     {
         return $this->belongsTo(Patient::class);

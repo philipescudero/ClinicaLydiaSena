@@ -12,7 +12,7 @@ use Illuminate\View\View;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Exibe a visão de login.
      */
     public function create(): View
     {
@@ -20,7 +20,7 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Lida com uma solicitação de autenticação recebida.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -28,11 +28,19 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = Auth::user();
+
+        // Redirecionamento limpo e direto, sem olhar para o passado
+        if ($user && $user->role === 'admin') {
+            return redirect()->route('dashboard');
+        }
+
+        // Se for paciente, vai para a área dele obrigatoriamente
+        return redirect()->route('patient.area');
     }
 
     /**
-     * Destroy an authenticated session.
+     * Destrói uma sessão autenticada (Logout).
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -42,6 +50,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // Altere de return redirect('/') para:
+        return redirect()->route('login');
     }
 }

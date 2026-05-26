@@ -5,7 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ $title ?? 'Lydia Sena | Psicologia Clínica e Neuropsicológica' }}</title>
+        <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=1">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -15,29 +16,16 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
+    <body class="font-sans antialiased bg-[#F9F6F3]">
+        <div class="min-h-screen">
+            {{-- Navegação com a Logo no canto esquerdo --}}
             @include('layouts.navigation')
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endisset
-
-            <!-- Page Content -->
             <main>
-                <div class="bg-[#FDF2F4] pt-6 pb-2 text-center">
-                    <div class="flex flex-col items-center">
-                        <h1 class="text-4xl font-serif text-gray-800 mb-1">Lydia Sena</h1> 
-                        <div class="h-[1px] w-32 bg-pink-300 mb-1"></div>
-                        <p class="text-[10px] tracking-[0.2em] text-gray-600 uppercase">Psicologia Clínica e Neuropsicologia</p>
-                    </div>
+                {{-- Conteúdo principal sem a logo duplicada --}}
+                <div class="max-w-7xl mx-auto pt-8 pb-12">
+                    {{ $slot }}
                 </div>
-                {{ $slot }}
             </main>
         </div>
     </body>
