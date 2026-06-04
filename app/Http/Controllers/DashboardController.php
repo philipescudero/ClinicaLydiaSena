@@ -62,14 +62,21 @@ class DashboardController extends Controller
 
         // --- 5. MAPA DE HORÁRIOS ---
         $sessoesGrade = PatientSession::with('patient')
-            ->whereBetween('session_date', [$inicioSemana, $fimSemana])
-            ->get();
+    ->whereBetween('session_date', [$inicioSemana, $fimSemana])
+    ->get();
 
         $gradeHorarios = [];
         foreach ($sessoesGrade as $sessao) {
+            // Forçamos o objeto Carbon a partir do timestamp do banco
             $dt = Carbon::parse($sessao->session_date);
+            
+            // Usamos apenas o formato Y-m-d e H:00. 
+            // Se ainda assim falhar, o problema é que o banco não está retornando dados dentro desse Range.
             $gradeHorarios[$dt->format('Y-m-d')][$dt->format('H:00')][] = $sessao;
         }
+
+        // DEBUG: Se você colocar isso logo após o foreach, o que aparece no log?
+        // \Log::info('Grade carregada:', ['count' => count($gradeHorarios)]);
 
         $horariosPermitidos = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
         $todosPacientes = Patient::orderBy('name', 'asc')->get();

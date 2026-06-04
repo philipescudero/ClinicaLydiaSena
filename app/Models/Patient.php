@@ -40,4 +40,8 @@ class Patient extends Model
     {
         return $this->hasOne(ChildPsicoAnamnesis::class);
     }
+        public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

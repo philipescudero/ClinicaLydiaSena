@@ -111,6 +111,7 @@
                         <tbody class="divide-y divide-[#F9F6F3]">
                             @forelse($patients as $patient)
                             <tr class="hover:bg-[#F9F6F3]/30 transition group">
+                                {{-- COLUNA 1: NOME --}}
                                 <td class="px-8 py-5 text-left">
                                     <div class="flex items-center">
                                         <div class="h-10 w-10 rounded-full bg-[#E1D3C1]/40 flex items-center justify-center text-[#8C846C] font-black mr-4 border border-[#E1D3C1]/50 shadow-sm">{{ substr($patient->name, 0, 1) }}</div>
@@ -120,131 +121,176 @@
                                         </div>
                                     </div>
                                 </td>
+
+                                {{-- COLUNA 2: QUANTIDADE SESSÕES --}}
                                 <td class="px-4 py-5">
                                     <span class="inline-flex items-center justify-center bg-[#F9F6F3] border border-[#E1D3C1] rounded-xl w-10 h-10 text-sm font-black text-[#8C846C] shadow-inner">{{ $patient->total_sessoes_mes ?? 0 }}</span>
                                 </td>
+
+                                {{-- COLUNA 3: S1 --}}
                                 <td class="px-4 py-5 text-center">
                                     <span class="block text-xs font-bold text-gray-700">{{ $patient->s1_count ?? 0 }}x</span>
                                     <span class="text-[9px] text-[#8C846C]/40 font-black">R$ {{ number_format($patient->s1_sum ?? 0, 2, ',', '.') }}</span>
                                 </td>
+
+                                {{-- COLUNA 4: S2 --}}
                                 <td class="px-4 py-5 text-center">
                                     <span class="block text-xs font-bold text-gray-700">{{ $patient->s2_count ?? 0 }}x</span>
                                     <span class="text-[9px] text-[#8C846C]/40 font-black">R$ {{ number_format($patient->s2_sum ?? 0, 2, ',', '.') }}</span>
                                 </td>
+
+                                {{-- COLUNA 5: S3 --}}
                                 <td class="px-4 py-5 text-center">
                                     <span class="block text-xs font-bold text-gray-700">{{ $patient->s3_count ?? 0 }}x</span>
                                     <span class="text-[9px] text-[#8C846C]/40 font-black">R$ {{ number_format($patient->s3_sum ?? 0, 2, ',', '.') }}</span>
                                 </td>
+
+                                {{-- COLUNA 6: TOTAL MÊS + BALANÇO DEVEDOR EM AMARELO RECALCULADO --}}
                                 <td class="px-4 py-5">
-                                    <span class="text-xs font-black text-[#8C846C] bg-[#E1D3C1]/30 px-4 py-2 rounded-xl border border-[#E1D3C1]">R$ {{ number_format($patient->total_mes ?? 0, 2, ',', '.') }}</span>
+                                    <div class="flex flex-col items-center justify-center gap-1 font-sans">
+                                        <span class="text-xs font-black text-[#8C846C] bg-[#E1D3C1]/30 px-4 py-1.5 rounded-xl border border-[#E1D3C1]">
+                                            R$ {{ number_format($patient->total_mes ?? 0, 2, ',', '.') }}
+                                        </span>
+
+                                        @if(($patient->pendentes_no_mes ?? 0) > 0)
+                                            <span class="text-[9px] font-black text-amber-500 uppercase tracking-wider animate-pulse">
+                                                Pendente: R$ {{ number_format($patient->pendentes_no_mes, 2, ',', '.') }}
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
                                 
-                               <td class="px-4 py-5">
-                                    <div class="flex items-center justify-center gap-3" id="payment-container-{{ $patient->id }}">
+                                {{-- COLUNA 7: PAGAMENTO E WHATSAPP (CORRIGIDA COM FECHAMENTO DE TAGS) --}}
+                                <td class="px-4 py-5">
+                                    <div id="payment-container-{{ $patient->id }}" class="relative inline-block text-left zap-dropdown-container">
                                         @php
-                                            $temPendencia = $patient->pendentes_no_mes > 0;
-                                            $temSessao = ($patient->total_sessoes_mes ?? 0) > 0;
+                                            $totalSessoes = $patient->total_sessoes_mes ?? 0;
+                                            $temSessao = $totalSessoes > 0;
+                                            $totalMesBruto = (float) ($patient->total_mes ?? 0);
+                                            $valorPendenteReais = (float) ($patient->pendentes_no_mes ?? 0);
+                                            $parcial = ($valorPendenteReais > 0 && $valorPendenteReais < $totalMesBruto);
                                         @endphp
 
-                                        {{-- Caso 1: Tem sessões e há pendências --}}
-                                        @if($temSessao && $temPendencia)
-                                            <button type="button" 
-                                                    onclick="ajaxTogglePayment('{{ $patient->id }}', 'pay')" 
-                                                    title="Registrar Pagamento Total" 
-                                                    class="p-2.5 bg-white text-[#8C846C]/30 hover:text-green-600 rounded-xl hover:bg-green-50 transition shadow-sm border border-[#E1D3C1]">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" /></svg>
-                                            </button>
+                                        @if($temSessao)
+                                            @if(($patient->pendentes_no_mes ?? 0) > 0)
+                                                {{-- Botão ativo se houver pendência --}}
+                                                <button type="button" onclick="togglePayMenu(event, '{{ $patient->id }}')" 
+                                                        class="px-4 py-2 rounded-2xl font-sans text-[10px] font-black uppercase tracking-widest transition shadow-sm border flex items-center gap-1.5 outline-none select-none cursor-pointer
+                                                        {{ $parcial ? 'bg-white text-amber-500 border-amber-200 hover:bg-amber-50' : 'bg-white text-[#8C846C]/40 border-[#E1D3C1] hover:bg-[#F9F6F3]' }}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    <span>{{ $parcial ? 'Parcial' : 'Pagamento' }}</span>
+                                                </button>
 
-                                        {{-- Caso 2: Tem sessões e tudo está pago --}}
-                                        @elseif($temSessao)
-                                            <button type="button" 
-                                                    onclick="ajaxTogglePayment('{{ $patient->id }}', 'refund', '{{ $patient->name }}')"
-                                                    title="Estornar Pagamento"
-                                                    class="p-2.5 bg-green-600 text-white rounded-xl shadow-md border border-green-700 transition transform hover:scale-105">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" /></svg>
-                                            </button>
+                                                {{-- MENU FLUTUANTE FINANÇAS --}}
+                                                {{-- MENU FLUTUANTE FINANÇAS NA LISTAGEM GERAL --}}
+                                                    <div id="pay-menu-{{ $patient->id }}" class="absolute right-0 mr-36 w-64 bg-white rounded-2xl shadow-2xl border border-[#E1D3C1] py-2 z-[110] hidden text-left popup-zap-menu js-pay-menu">    
+                                                        <div class="px-4 py-2 border-b border-[#F9F6F3]">
+                                                            <p class="text-[9px] font-black uppercase tracking-widest text-[#8C846C]/60">Gestão Financeira</p>
+                                                        </div>
+                                                        
+                                                        <a href="javascript:void(0);" onclick="executePaymentRequest('{{ $patient->id }}', 'pay')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-green-50 transition flex flex-col gap-0.5">
+                                                            <span class="font-bold text-green-600">⚡ Pagamento Integral</span>
+                                                            <span class="text-[9px] text-gray-400 font-medium leading-tight">Quita todo o valor de R$ {{ number_format($patient->pendentes_no_mes, 2, ',', '.') }}</span>
+                                                        </a>
+
+                                                        <a href="javascript:void(0);" onclick="abrirModalParcialReais('{{ $patient->id }}', '{{ $patient->name }}', '{{ number_format($patient->pendentes_no_mes, 2, ',', '.') }}')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-amber-50 transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                                            <span class="font-bold text-amber-600">📝 Pagamento Parcial</span>
+                                                            <span class="text-[9px] text-gray-400 font-medium leading-tight">Informa um valor recebido em Reais (R$).</span>
+                                                        </a>
+
+                                                        <a href="javascript:void(0);" onclick="ajaxTogglePayment('{{ $patient->id }}', 'refund', '{{ $patient->name }}')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-red-50 transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                                            <span class="font-bold text-red-500">🔄 Estornar Tudo</span>
+                                                            <span class="text-[10px] text-gray-400 italic leading-tight">Retorna o mês para pendente.</span>
+                                                        </a>
+                                                    </div>
+                                            @else
+                                                {{-- Botão estático se o mês já estiver pago --}}
+                                                <button type="button" 
+                                                        onclick="ajaxTogglePayment('{{ $patient->id }}', 'refund', '{{ $patient->name }}')"
+                                                        title="Clique para estornar o pagamento deste mês"
+                                                        class="px-4 py-2 bg-white text-green-600 border-green-200 hover:bg-green-50 rounded-2xl font-sans text-[10px] font-black uppercase tracking-widest transition shadow-sm border flex items-center gap-1.5 outline-none select-none cursor-pointer">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    <span>Pago</span>
+                                                </button>
+                                            @endif
                                         @else
-                                            <div class="p-2.5 opacity-10"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg></div>
+                                            <div class="p-2.5 opacity-10">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        @endif {{-- Fecha @if($temSessao) --}}
+                                    </div> {{-- Fecha o payment-container --}}
+
+                                    {{-- BLOCALIZAÇÃO DO COGNITIVO DO WHATSAPP (MANTIDO EXATAMENTE IGUAL) --}}
+                                    @php
+                                        $keyMes = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT);
+                                        $logs = $patient->whatsapp_check_log ?? [];
+                                        $jaEnviou = isset($logs[$keyMes]) && $logs[$keyMes];
+                                        $primeiroNome = explode(' ', trim($patient->name))[0];
+                                        $phoneLimpo = preg_replace('/\D/', '', $patient->phone);
+
+                                        if (!empty($patient->sessoes_pendentes)) {
+                                            $listaSessoes = explode('|', $patient->sessoes_pendentes);
+                                            $textoSessoes = "";
+                                            foreach ($listaSessoes as $sessao) {
+                                                $textoSessoes .= "\n• " . trim($sessao);
+                                            }
+                                            $msgLembrete = "Olá, {$primeiroNome}! Tudo bem?\n\nGostaria de confirmar nossos atendimentos agendados:" . $textoSessoes . "\n\nEstarei te aguardando. Até lá!";
+                                        } else {
+                                            $msgLembrete = "Olá, {$primeiroNome}! Tudo bem?\n\nGostaria de confirmar nosso próximo atendimento agendado.\n\nEstarei te aguardando. Até lá!";
+                                        }
+                                        $urlLembrete = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgLembrete);
+
+                                        $msgCobranca = "Olá, {$primeiroNome}! Tudo bem?\n\nAqui é do Consultório da Psicóloga Lydia Sena.\n\nPassando para confirmar suas " . ($patient->total_sessoes_mes ?? 0) . " sessões deste mês.\nO valor total é de R$ " . number_format(($patient->total_mes ?? 0), 2, ',', '.') . ".\n\nÉ isso mesmo?";
+                                        $urlCobranca = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgCobranca);
+
+                                        $matriculaPaciente = $patient->cpf;
+                                        $msgAcesso = "Olá, {$primeiroNome}!\n\nCriei seu perfil no nosso sistema!\n\nVocê pode acompanhar sua agenda de atendimentos e histórico financeiro acessando o link:\n" . url('/') . "\n\nSua Matrícula de Acesso é: {$matriculaPaciente}\nSua senha provisória é: clinicalydiasena";
+                                        $urlAcesso = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgAcesso);
+                                    @endphp
+
+                                    <div class="relative inline-block text-left zap-dropdown-container">
+                                        <button type="button" onclick="toggleZapMenu(event, '{{ $patient->id }}')" 
+                                                class="px-4 py-2 {{ $jaEnviou ? 'bg-green-600 text-white shadow-md border-green-700' : 'bg-white text-green-500 hover:bg-green-50 border-[#E1D3C1]' }} rounded-2xl font-sans text-[10px] font-black uppercase tracking-widest transition shadow-sm border flex items-center gap-1.5 outline-none select-none">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.237 3.483 8.417-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.308 1.652zm5.586-3.822c1.552.921 3.469 1.408 5.424 1.409 5.861 0 10.63-4.77 10.632-10.633.001-2.846-1.107-5.522-3.117-7.533-2.011-2.012-4.689-3.12-7.535-3.121-5.865 0-10.634 4.77-10.636 10.633-.001 2.035.534 4.021 1.549 5.79l-1.018 3.719 3.805-.998z"/>
+                                            </svg>
+                                            <span>Mensagem</span>
+                                        </button>
+                                        @if($jaEnviou)
+                                            <span class="badge-ok absolute -top-1 -right-1 bg-blue-500 text-white text-[7px] font-black px-1.5 rounded-full border border-white shadow-sm z-10">OK</span>
                                         @endif
 
-                                        {{-- WhatsApp com Menu de Mensagens Inteligente Dinâmico por CLIQUE --}}
-                                        @php
-                                            $keyMes = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT);
-                                            $logs = $patient->whatsapp_check_log ?? [];
-                                            $jaEnviou = isset($logs[$keyMes]) && $logs[$keyMes];
-                                            $primeiroNome = explode(' ', trim($patient->name))[0];
-                                            $phoneLimpo = preg_replace('/\D/', '', $patient->phone);
-
-                                            if (!empty($patient->sessoes_pendentes)) {
-                                                $listaSessoes = explode('|', $patient->sessoes_pendentes);
-                                                $textoSessoes = "\n- " . implode("\n- ", $listaSessoes);
-                                                $msgLembrete = "Olá " . $primeiroNome . ", tudo bem? Passando para lembrar das nossas próximas sessões agendadas deste mês:" . $textoSessoes . "\n\nAguardo você nos nossos horários combinados!";
-                                            } else {
-                                                $msgLembrete = "Olá " . $primeiroNome . ", tudo bem? Passando para lembrar da nossa próxima sessão agendada. Aguardo você no nosso horário combinado!";
-                                            }
-                                            $urlLembrete = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgLembrete);
-
-                                            $msgCobranca = "Olá " . $primeiroNome . ", tudo bem? Aqui é da clínica da Lydia Sena. Passando para confirmar suas " . ($patient->total_sessoes_mes ?? 0) . " sessões deste mês. O valor total é de R$ " . number_format(($patient->total_mes ?? 0), 2, ',', '.') . ". Podemos confirmar?";
-                                            $urlCobranca = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgCobranca);
-
-                                            // Puxa o valor que está gravado na coluna CPF do banco
-                                        $matriculaPaciente = $patient->cpf; 
-                                        
-                                            $msgAcesso = "Olá " . $primeiroNome . ", criei seu perfil no nosso sistema! Você pode acompanhar sua agenda e histórico financeiro acessando o link: " . url('/') . "/login \n\nSua Matrícula de Acesso é: " . $matriculaPaciente . "\nSua senha provisória é: clinicalydiasena";
-                                        
-                                        $urlAcesso = "https://wa.me/" . $phoneLimpo . "?text=" . urlencode($msgAcesso);
-                                        @endphp
-
-                                        {{-- Container Mestre Isolado (Garante que nada saia do lugar) --}}
-                                        <div class="relative inline-block text-left zap-dropdown-container">
-                                            
-                                            {{-- Botão Principal do WhatsApp --}}
-                                            <button type="button" onclick="toggleZapMenu(event, '{{ $patient->id }}')" 
-                                                    class="p-2.5 {{ $jaEnviou ? 'bg-green-600 text-white shadow-md border-green-700' : 'bg-white text-green-500 hover:bg-green-50 border-[#E1D3C1]' }} rounded-xl transition shadow-sm border flex items-center outline-none select-none">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.237 3.483 8.417-.003 6.557-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.308 1.652zm5.586-3.822c1.552.921 3.469 1.408 5.424 1.409 5.861 0 10.63-4.77 10.632-10.633.001-2.846-1.107-5.522-3.117-7.533-2.011-2.012-4.689-3.12-7.535-3.121-5.865 0-10.634 4.77-10.636 10.633-.001 2.035.534 4.021 1.549 5.79l-1.018 3.719 3.805-.998z"/>
-                                                </svg>
-                                                <span class="text-[8px] font-black uppercase tracking-widest ml-1 md:inline hidden">Mensagem</span>
-                                            </button>
-
-                                            @if($jaEnviou)
-                                                <span class="badge-ok absolute -top-1 -right-1 bg-blue-500 text-white text-[7px] font-black px-1.5 rounded-full border border-white shadow-sm z-10">OK</span>
-                                            @endif
-
-                                            {{-- Menu Flutuante Blindado: Adicionado 'top-full right-0 origin-top-right' para forçar a flutuação absoluta real --}}
-                                            {{-- Mudamos para top-0 e aumentamos o mr para afastar perfeitamente do botão mensagem --}}
-                                            {{-- Removemos o top-0 e adicionamos a classe 'js-zap-menu' para o script gerenciar --}}
-                                            <div id="zap-menu-{{ $patient->id }}" 
-                                                class="absolute right-0 mr-36 w-64 bg-white rounded-2xl shadow-2xl border border-[#E1D3C1] py-2 z-[100] hidden text-left popup-zap-menu pointer-events-auto js-zap-menu">                    
-                                                
-                                                <div class="px-4 py-2 border-b border-[#F9F6F3]">
-                                                    <p class="text-[9px] font-black uppercase tracking-widest text-[#8C846C]/60">Enviar Notificação</p>
-                                                </div>
-                                                
-                                                <a href="{{ $urlLembrete }}" target="_blank" class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition flex flex-col gap-0.5">
-                                                    <span class="font-bold text-gray-800">⏰ Lembrete de Consulta</span>
-                                                    @if(!empty($patient->sessoes_pendentes))
-                                                        <span class="text-[9px] text-green-600 font-medium font-sans leading-tight">Inclui as datas pendentes do mês.</span>
-                                                    @else
-                                                        <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Aviso simples de retorno ou confirmation de horário.</span>
-                                                    @endif
-                                                </a>
-
-                                                <a href="{{ $urlCobranca }}" target="_blank" onclick="marcarComoEnviado(this, '{{ $patient->id }}', '{{ $month }}', '{{ $year }}')"
-                                                   class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
-                                                    <span class="font-bold text-gray-800">💰 Fechamento do Mês</span>
-                                                    <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Envia o resumo de sessões e o valor Pix de R$ {{ number_format(($patient->total_mes ?? 0), 2, ',', '.') }}.</span>
-                                                </a>
-
-                                                <a href="{{ $urlAcesso }}" target="_blank" class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
-                                                    <span class="font-bold text-gray-800">🔑 Credenciais do Espaço</span>
-                                                    <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Envia o link de login e dados de primeiro acesso do paciente.</span>
-                                                </a>
+                                        <div id="zap-menu-{{ $patient->id }}" class="absolute right-0 mr-36 w-64 bg-white rounded-2xl shadow-2xl border border-[#E1D3C1] py-2 z-[100] hidden text-left popup-zap-menu pointer-events-auto js-zap-menu">    
+                                            <div class="px-4 py-2 border-b border-[#F9F6F3]">
+                                                <p class="text-[9px] font-black uppercase tracking-widest text-[#8C846C]/60">Enviar Notificação</p>
                                             </div>
+                                            <a href="{{ $urlLembrete }}" target="_blank" class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition flex flex-col gap-0.5">
+                                                <span class="font-bold text-gray-800">⏰ Lembrete de Consulta</span>
+                                                @if(!empty($patient->sessoes_pendentes))
+                                                    <span class="text-[9px] text-green-600 font-medium font-sans leading-tight">Inclui as datas pendentes do mês.</span>
+                                                @else
+                                                    <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Aviso simples de confirmação de horário.</span>
+                                                @endif
+                                            </a>
+                                            <a href="{{ $urlCobranca }}" target="_blank" onclick="marcarComoEnviado(this, '{{ $patient->id }}', '{{ $month }}', '{{ $year }}')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                                <span class="font-bold text-gray-800">💰 Fechamento do Mês</span>
+                                                <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Envia o resumo de sessões e o valor total de R$ {{ number_format(($patient->total_mes ?? 0), 2, ',', '.') }}.</span>
+                                            </a>
+                                            <a href="{{ $urlAcesso }}" target="_blank" class="block px-4 py-3 text-xs text-gray-700 hover:bg-[#F9F6F3] transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                                <span class="font-bold text-gray-800">🔑 Credenciais do Espaço</span>
+                                                <span class="text-[10px] text-gray-400 italic font-sans leading-tight">Envia o link de login e dados de primeiro acesso do paciente.</span>
+                                            </a>
                                         </div>
                                     </div>
                                 </td>
 
+                                {{-- COLUNA 8: AÇÕES --}}
                                 <td class="px-8 py-5 text-right">
                                     <a href="{{ route('patients.show', $patient->id) }}" class="inline-flex items-center px-6 py-2.5 bg-white text-[#8C846C] border border-[#E1D3C1] rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#8C846C] hover:text-white transition shadow-sm">Prontuário</a>
                                 </td>
@@ -323,33 +369,23 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    function confirmarEstorno(patientId, patientName) {
-        Swal.fire({
-            title: 'Reverter Pagamento?',
-            text: `Deseja retornar o status financeiro de ${patientName} para pendente?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Sim, Reverter',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#8C846C',
-            cancelButtonColor: '#E1D3C1',
-            reverseButtons: true,
-            customClass: {
-                popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans',
-                title: 'font-serif italic text-gray-800 text-2xl',
-                confirmButton: 'rounded-xl uppercase font-black text-[10px] tracking-widest px-6 py-3',
-                cancelButton: 'rounded-xl uppercase font-black text-[10px] tracking-widest px-6 py-3'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                document.getElementById(`form-estorno-${patientId}`).submit();
-            }
-        });
-    }
+    // --- UTILS BASE ---
+    const swalConfigBase = {
+        confirmButtonColor: '#8C846C',
+        cancelButtonColor: '#E1D3C1',
+        customClass: {
+            popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans',
+            title: 'font-serif italic text-gray-800 text-2xl'
+        }
+    };
 
+    const hojeDataLocal = new Date().toISOString().split('T')[0];
+
+    // --- WHATSAPP: MARCAR COMO ENVIADO ---
     function marcarComoEnviado(element, patientId, month, year) {
-        const container = element.closest('.relative');
+        const container = element.closest('.zap-dropdown-container');
         const botao = container.querySelector('button');
         
         botao.classList.remove('bg-white', 'text-green-500');
@@ -365,7 +401,7 @@
         fetch(`/pacientes/${patientId}/mark-whatsapp-sent`, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
@@ -373,31 +409,191 @@
         });
     }
 
+    // --- SESSION FLASH TOAST ---
     @if(session('success'))
         Swal.fire({
             icon: 'success',
             title: 'Sucesso!',
             text: "{{ session('success') }}",
             confirmButtonColor: '#8C846C',
-            background: '#ffffff',
-            customClass: {
-                popup: 'rounded-[2rem] border border-[#E1D3C1]',
-                confirmButton: 'rounded-xl uppercase font-black text-xs tracking-widest px-8 py-3'
-            }
+            customClass: { popup: 'rounded-[2rem] border border-[#E1D3C1]' }
         });
     @endif
 
+    // --- CONTROLADOR DROPDOWNS ---
+    function togglePayMenu(event, patientId) {
+        event.stopPropagation();
+        const menu = document.getElementById(`pay-menu-${patientId}`);
+        
+        document.querySelectorAll('.js-pay-menu').forEach(m => { 
+            if(m !== menu) m.classList.add('hidden'); 
+        });
+        
+        if (menu) {
+            menu.classList.toggle('hidden');
+            const row = event.currentTarget.closest('tr');
+            const allRows = Array.from(row.parentElement.querySelectorAll('tr'));
+            if (allRows.indexOf(row) >= (allRows.length - 3)) {
+                menu.classList.add('bottom-0', 'mb-0'); 
+                menu.classList.remove('top-0', 'mt-0');
+            } else {
+                menu.classList.add('top-0', 'mt-0'); 
+                menu.classList.remove('bottom-0', 'mb-0');
+            }
+        }
+    }
+
+    function toggleZapMenu(event, patientId) {
+        event.stopPropagation();
+        const menu = document.getElementById(`zap-menu-${patientId}`);
+        
+        document.querySelectorAll('.js-zap-menu').forEach(m => { 
+            if(m !== menu) m.classList.add('hidden'); 
+        });
+        
+        if (menu) menu.classList.toggle('hidden');
+    }
+
+    // --- CONTROLADOR MODAL PARCIAL REAIS ---
+    // --- CONTROLADOR MODAL PARCIAL REAIS CORRIGIDO ---
+    function abrirModalParcialReais(patientId, name, pendente) {
+        const menu = document.getElementById(`pay-menu-${patientId}`);
+        if(menu) menu.classList.add('hidden');
+
+        Swal.fire({
+            title: 'Lançar Recebimento Parcial',
+            html: `
+                <p class="text-xs text-gray-500 mb-4 text-center">Total Restante Pendente: <b class="text-amber-600">R$ ${pendente}</b></p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-1 text-left pl-2">Valor Pago</label>
+                        <input id="swal_valor" type="text" placeholder="R$ 0,00" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C] text-lg">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-1 text-left pl-2">Data do Recebimento</label>
+                        <input id="swal_data_parcial" type="date" value="${hojeDataLocal}" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C] text-sm">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true, 
+            confirmButtonText: 'Confirmar Recebimento',
+            cancelButtonText: 'Voltar',
+            confirmButtonColor: '#8C846C',
+            cancelButtonColor: '#E1D3C1',
+            customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans', title: 'font-serif italic text-gray-800 text-xl' },
+            didOpen: () => {
+                const input = document.getElementById('swal_valor');
+                input.addEventListener('input', (e) => {
+                    let v = e.target.value.replace(/\D/g, "");
+                    v = (v/100).toFixed(2).replace(".", ",");
+                    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+                    e.target.value = v ? "R$ " + v : "";
+                });
+            },
+            preConfirm: () => {
+                const val = document.getElementById('swal_valor').value;
+                const dataEscolhida = document.getElementById('swal_data_parcial').value;
+                if(!val) return Swal.showValidationMessage('Por favor, digite o valor recebido.');
+                if(!dataEscolhida) return Swal.showValidationMessage('Por favor, selecione uma data válida.'); // <-- CORREÇÃO: Variável mapeada corretamente
+                return { valor: val, data: dataEscolhida };
+            }
+        }).then((res) => {
+            if(res.isConfirmed) {
+                let valorLimpo = res.value.valor.replace("R$ ", "").replaceAll(".", "").replace(",", ".");
+                executePartialPaymentReaisRequest(patientId, parseFloat(valorLimpo), res.value.data);
+            }
+        });
+    }
+
+    function executePartialPaymentReaisRequest(patientId, valorPagoInReais, dataPagamento) {
+        fetch(`/pacientes/${patientId}/baixar-parcial-reais`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+                month: '{{ $month }}', 
+                year: '{{ $year }}',
+                valor_pago: valorPagoInReais,
+                paid_at: dataPagamento
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, confirmButtonColor: '#8C846C' })
+                .then(() => window.location.reload());
+            }
+        });
+    }
+
+    // --- REQUISIÇÃO AJAX: INTEGRAL OU REVERSÃO ---
+    function executePaymentRequest(patientId, action, dataPagamento = null) {
+        const menu = document.getElementById(`pay-menu-${patientId}`);
+        if(menu) menu.classList.add('hidden');
+
+        if (action === 'pay' && !dataPagamento) {
+            Swal.fire({
+                title: 'Data do Pagamento',
+                html: `
+                    <p class="text-xs text-gray-500 mb-4">Selecione o dia do recebimento do pagamento integral:</p>
+                    <input id="swal_data_integral" type="date" value="${hojeDataLocal}" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C]">
+                `,
+                showCancelButton: true, confirmButtonText: 'Confirmar Pagamento', cancelButtonText: 'Voltar',
+                confirmButtonColor: '#8C846C', cancelButtonColor: '#E1D3C1',
+                customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans' },
+                preConfirm: () => document.getElementById('swal_data_integral').value
+            }).then((dateResult) => {
+                if (dateResult.isConfirmed) {
+                    executePaymentRequest(patientId, 'pay', dateResult.value);
+                }
+            });
+            return;
+        }
+
+        const url = action === 'pay' ? `/pacientes/${patientId}/baixar-mes` : `/pacientes/${patientId}/estornar-mes`;
+        
+        fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+                month: '{{ $month }}', 
+                year: '{{ $year }}', 
+                paid_at: dataPagamento 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, confirmButtonColor: '#8C846C' })
+                .then(() => {
+                    // CORREÇÃO CRÍTICA: Força o reload físico do banco de dados na listagem mestre
+                    window.location.reload();
+                });
+            }
+        })
+        .catch(error => console.error('Erro:', error));
+    }
+
     function ajaxTogglePayment(patientId, action, patientName = '') {
-        const isRefund = (action === 'refund');
-        if (isRefund) {
+        if (action === 'refund') {
             Swal.fire({
                 title: 'Reverter Pagamento?',
-                text: `Deseja retornar o status de ${patientName} para pendente?`,
+                text: `Deseja retornar o status financeiro de ${patientName} para pendente?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'Sim, Reverter',
+                cancelButtonText: 'Cancelar',
                 confirmButtonColor: '#8C846C',
                 cancelButtonColor: '#E1D3C1',
+                reverseButtons: true,
+                customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1]' }
             }).then((result) => {
                 if (result.isConfirmed) {
                     executePaymentRequest(patientId, action);
@@ -408,90 +604,7 @@
         }
     }
 
-    function executePaymentRequest(patientId, action) {
-        const url = action === 'pay' ? `/pacientes/${patientId}/baixar-mes` : `/pacientes/${patientId}/estornar-mes`;
-        
-        fetch(url, {
-            method: 'PATCH',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ month: '{{ $month }}', year: '{{ $year }}' })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const container = document.getElementById(`payment-container-${patientId}`);
-                const zapHtml = container.querySelector('.zap-dropdown-container').outerHTML;
-
-                if (action === 'pay') {
-                    container.innerHTML = `
-                        <button type="button" onclick="ajaxTogglePayment('${patientId}', 'refund')" class="p-2.5 bg-green-600 text-white rounded-xl shadow-md border border-green-700 transition transform hover:scale-105">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" /></svg>
-                        </button>
-                        ${zapHtml}
-                    `;
-                } else {
-                    container.innerHTML = `
-                        <button type="button" onclick="ajaxTogglePayment('${patientId}', 'pay')" class="p-2.5 bg-white text-[#8C846C]/30 hover:text-green-600 rounded-xl hover:bg-green-50 transition shadow-sm border border-[#E1D3C1]">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" /></svg>
-                        </button>
-                        ${zapHtml}
-                    `;
-                }
-
-                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-                Toast.fire({ icon: 'success', title: data.message });
-            }
-        })
-        .catch(error => console.error('Erro:', error));
-    }
-
-    // --- LOGICA DE CLIQUE MANUAL PARA O MENU DO WHATSAPP ---
-    function toggleZapMenu(event, patientId) {
-        event.stopPropagation(); // Impede o fechamento imediato
-        
-        const menuId = `zap-menu-${patientId}`;
-        const menuAlvo = document.getElementById(menuId);
-        const linhaAtual = event.currentTarget.closest('tr'); // Pega a linha (tr) atual
-        const todasAsLinhas = Array.from(linhaAtual.parentElement.querySelectorAll('tr')); // Todas as linhas válidas
-        
-        const totalPacientes = todasAsLinhas.length;
-        const indiceAtual = todasAsLinhas.indexOf(linhaAtual); // Posição atual (0, 1, 2...)
-
-        // Fecha qualquer outro menu aberto na tela
-        document.querySelectorAll('.popup-zap-menu').forEach(menu => {
-            if (menu.id !== menuId) {
-                menu.classList.add('hidden');
-            }
-        });
-
-        // Se o menu já estava aberto e vai fechar, apenas esconde e limpa as classes
-        if (!menuAlvo.classList.contains('hidden')) {
-            menuAlvo.classList.add('hidden');
-            return;
-        }
-
-        // --- REGRA DINÂMICA PARA OS 3 ÚLTIMOS ---
-        // Exemplo: Se tiver 16 pacientes, o índice vai de 0 a 15. Os 3 últimos são 13, 14 e 15.
-        // Portanto: 15 >= (16 - 3) -> 15 >= 13 (Verdadeiro!)
-        if (indiceAtual >= (totalPacientes - 3)) {
-            // Alinha a base do menu com a base da linha e joga para cima
-            menuAlvo.classList.remove('top-0', 'mt-0');
-            menuAlvo.classList.add('bottom-0', 'mb-0');
-        } else {
-            // Alinha o topo do menu com o topo da linha e joga para baixo
-            menuAlvo.classList.remove('bottom-0', 'mb-0');
-            menuAlvo.classList.add('top-0', 'mt-0');
-        }
-
-        // Exibe o menu posicionado com precisão cirúrgica
-        menuAlvo.classList.remove('hidden');
-    }
-
-    // Fecha qualquer menu se a Lydia clicar em qualquer outra parte da tela
+    // Fechamento automático global ao clicar fora
     document.addEventListener('click', function (event) {
         if (!event.target.closest('.zap-dropdown-container')) {
             document.querySelectorAll('.popup-zap-menu').forEach(menu => {

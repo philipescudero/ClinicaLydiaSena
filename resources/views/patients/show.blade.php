@@ -40,6 +40,125 @@
                                 </p>
                             </div>
                             <div><p class="text-[#8C846C]/40 uppercase text-[10px] font-black tracking-widest mb-1">Observações</p><p class="text-[#8C846C]/80 italic text-xs leading-relaxed bg-[#F9F6F3] p-3 rounded-2xl border border-[#E1D3C1]/30">{{ $patient->observations ?? 'Nenhuma observação.' }}</p></div>
+                         </div>
+                     </div>
+
+                    {{-- NOVO BLOCO: FLUXO FINANCEIRO DO PACIENTE COM GATILHO ESTILO MENSAGEM --}}
+                    {{-- NOVO BLOCO: FLUXO FINANCEIRO DO PACIENTE COM GATILHO ESTILO MENSAGEM --}}
+                    <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-[#E1D3C1] h-fit font-sans relative">
+                        <h3 class="text-md font-serif italic text-[#8C846C] mb-4 border-b border-[#F9F6F3] pb-2 flex items-center justify-between">
+                            <span>Fluxo Financeiro</span>
+                            <span class="text-[9px] uppercase font-black tracking-wider text-[#8C846C]/60 bg-[#F9F6F3] px-2.5 py-1 rounded-md font-sans not-italic">
+                                @php
+                                    $mesNome = \Carbon\Carbon::create(null, $month ?? now()->month, 1)->translatedFormat('F');
+                                    $anoFiltro = $year ?? now()->year;
+                                @endphp
+                                {{ $mesNome }} / {{ $anoFiltro }}
+                            </span>
+                        </h3>
+
+                        @php
+                            $totalGerado = $sessions->sum('value');
+                            $totalPagoEmRecibos = $historicoPagamentos->sum('amount');
+                            $restantePendente = $totalGerado - $totalPagoEmRecibos;
+                            if($restantePendente < 0) $restantePendente = 0;
+                        @endphp
+
+                        <div class="space-y-4">
+                            {{-- Visão Geral de Saldos --}}
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-[#F9F6F3]/60 p-3 rounded-2xl border border-[#E1D3C1]/20">
+                                    <p class="text-[#8C846C]/40 uppercase text-[9px] font-black tracking-widest mb-0.5">Total do Mês</p>
+                                    <p class="text-sm font-bold text-gray-700">R$ {{ number_format($totalGerado, 2, ',', '.') }}</p>
+                                </div>
+                                <div class="bg-[#F9F6F3]/60 p-3 rounded-2xl border border-[#E1D3C1]/20">
+                                    <p class="text-[#8C846C]/40 uppercase text-[9px] font-black tracking-widest mb-0.5">Valor Pendente</p>
+                                    <p class="text-sm font-bold {{ $restantePendente > 0 ? 'text-amber-500 animate-pulse' : 'text-green-600' }}">
+                                        R$ {{ number_format($restantePendente, 2, ',', '.') }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {{-- BOTÃO E MENU FLUTUANTE DE LANÇAMENTOS DE CAIXA (CORRIGIDO) --}}
+                            @if($totalGerado > 0)
+                            <div class="relative text-center zap-dropdown-container">
+                                <button type="button" onclick="togglePayMenu(event, '{{ $patient->id }}')" 
+                                        class="w-full py-2.5 rounded-2xl font-sans text-[10px] font-black uppercase tracking-widest border transition-all duration-300 flex items-center justify-center gap-1.5 shadow-sm outline-none select-none cursor-pointer
+                                        {{ $restantePendente <= 0 ? 'bg-green-600 text-white border-green-700 hover:bg-green-700' : 'bg-white text-[#8C846C] border-[#E1D3C1] hover:bg-[#F9F6F3]' }}">
+                                    @if($restantePendente <= 0)
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    @else
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                    @endif
+                                    <span>{{ $restantePendente <= 0 ? 'Mês Quitado' : 'Lançar Recebimento' }}</span>
+                                </button>
+
+                                <div id="pay-menu-{{ $patient->id }}" class="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-[#E1D3C1] py-2 z-[110] hidden text-left popup-zap-menu js-pay-menu">    
+                                    <div class="px-4 py-2 border-b border-[#F9F6F3]">
+                                        <p class="text-[9px] font-black uppercase tracking-widest text-[#8C846C]/60">Gestão de Caixa</p>
+                                    </div>
+                                    
+                                    {{-- Só exibe ações de baixa se ainda houver valor devedor --}}
+                                    @if($restantePendente > 0)
+                                        <a href="javascript:void(0);" onclick="executePaymentRequest('{{ $patient->id }}', 'pay')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-green-50 transition flex flex-col gap-0.5">
+                                            <span class="font-bold text-green-600">⚡ Quitar Valor Integral</span>
+                                            <span class="text-[9px] text-gray-400 font-medium leading-tight">Gera um recibo total de R$ {{ number_format($restantePendente, 2, ',', '.') }}</span>
+                                        </a>
+                                        <a href="javascript:void(0);" onclick="abrirModalParcialReais('{{ $patient->id }}', '{{ $patient->name }}', '{{ number_format($restantePendente, 2, ',', '.') }}')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-amber-50 transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                            <span class="font-bold text-amber-600">📝 Recebimento Parcial</span>
+                                            <span class="text-[9px] text-gray-400 font-medium leading-tight">Informa uma quantia sob medida recebida em Reais.</span>
+                                        </a>
+                                    @endif
+                                    
+                                    <a href="javascript:void(0);" onclick="reverterTodosOsPagamentosDoMes('{{ $patient->id }}', '{{ $patient->name }}')" class="block px-4 py-3 text-xs text-gray-700 hover:bg-red-50 transition border-t border-[#F9F6F3] flex flex-col gap-0.5">
+                                        <span class="font-bold text-red-500">🔄 Estornar Lançamentos</span>
+                                        <span class="text-[10px] text-gray-400 italic leading-tight">Apaga os recibos e reverte o mês.</span>
+                                    </a>
+                                </div>
+                            </div>
+                            @endif
+
+                            {{-- Listagem de Recebimentos Consolidados --}}
+                            {{-- Listagem de Recebimentos Consolidados com Lixeira Individual --}}
+                            <div>
+                                <p class="text-[#8C846C]/40 uppercase text-[9px] font-black tracking-widest mb-2 pl-1">Histórico de Entradas</p>
+                                <div class="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                                    @forelse($historicoPagamentos ?? [] as $pagamento)
+                                        <div class="flex items-center justify-between p-2.5 bg-green-50/40 border border-green-100 rounded-xl text-xs group/item transition-all hover:bg-green-50/80">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                                <span class="text-gray-600 font-medium">
+                                                    {{ $pagamento->type === 'integral' ? 'Pagamento Integral' : 'Pagamento Parcial' }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <div class="text-right">
+                                                    <p class="font-bold text-green-700">R$ {{ number_format($pagamento->amount, 2, ',', '.') }}</p>
+                                                    <p class="text-[9px] text-gray-400 font-bold tracking-wide">
+                                                        {{ \Carbon\Carbon::parse($pagamento->payment_date)->format('d/m/Y') }}
+                                                    </p>
+                                                </div>
+                                                
+                                                {{-- BOTÃO DA LIXEIRA INDIVIDUAL --}}
+                                                <button type="button" onclick="confirmarExclusaoReciboIndividual('{{ $pagamento->id }}', '{{ number_format($pagamento->amount, 2, ',', '.') }}')" 
+                                                        class="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all duration-200 opacity-0 group-hover/item:opacity-100 cursor-pointer" title="Excluir este recibo">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="text-center py-6 text-xs text-[#8C846C]/40 italic bg-[#F9F6F3]/30 rounded-2xl border border-dashed border-[#E1D3C1]/40">
+                                            Nenhum recebimento efetuado neste período.
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -204,13 +323,13 @@
                         @else
                             <div class="space-y-3">
                                 @foreach($sessions as $session)
-                                    <div class="group flex items-center justify-between p-5 historico-card border border-[#E1D3C1]/50 rounded-[2rem] transition hover:shadow-xl hover:-translate-y-1 duration-300 relative overflow-hidden">
+                                    <div class="group flex items-center justify-between p-5 bg-white border border-[#E1D3C1]/50 rounded-[2rem] transition hover:shadow-xl hover:-translate-y-1 duration-300 relative overflow-hidden">
                                         @if($session->status == 'pago')
                                             <div class="indicador-pago"></div>
                                         @endif
 
                                         <div class="flex items-center gap-5 text-left flex-1 overflow-hidden">
-                                            <div class="bg-[#F9F6F3] p-3 rounded-2xl text-center min-w-[65px] shadow-sm border border-[#E1D3C1]/30 group-hover:bg-[#8C846C] group-hover:text-white transition-colors duration-500">
+                                            <div class="bg-[#F9F6F3] p-3 rounded-2xl text-center min-w-[65px] border border-[#E1D3C1]/30 group-hover:bg-[#8C846C] group-hover:text-white transition-colors duration-500">
                                                 <p class="text-[10px] font-black uppercase leading-tight">{{ $session->session_date->translatedFormat('M') }}</p>
                                                 <p class="text-xl font-serif font-bold leading-none">{{ $session->session_date->format('d') }}</p>
                                             </div>
@@ -227,6 +346,7 @@
                                         </div>
 
                                         <div class="flex items-center gap-6">
+                                            {{-- Controle de Confirmação Clínica do Horário --}}
                                             <div class="flex flex-col items-center">
                                                 <form action="{{ route('sessions.markPerformed', $session->id) }}" method="POST">
                                                     @csrf @method('PATCH')
@@ -235,35 +355,25 @@
                                                     </button>
                                                 </form>
                                                 <span class="text-[7px] font-black uppercase tracking-tighter {{ $session->performed ? 'text-green-600' : 'text-[#8C846C]/40' }}">
-                                                    {{ $session->performed ? 'Consulta realizada' : ' Consulta Agendada' }}
+                                                    {{ $session->performed ? 'Consulta realizada' : 'Consulta Agendada' }}
                                                 </span>
                                             </div>
 
-                                            <div class="text-right border-l border-[#E1D3C1]/30 pl-6">
-                                                <p class="text-sm font-black text-[#8C846C] mb-1">R$ {{ number_format($session->value, 2, ',', '.') }}</p>
-                                                <form action="{{ route('sessions.updateStatus', $session->id) }}" method="POST">
-                                                    @csrf @method('PATCH')
-                                                    <button type="submit" class="text-[8px] px-3 py-1 rounded-full font-black uppercase tracking-tighter transition-all {{ $session->status == 'pago' ? 'bg-green-600 text-white shadow-sm' : 'bg-white text-[#8C846C] border border-[#E1D3C1]' }}">
-                                                        {{ $session->status }}
-                                                    </button>
-                                                </form>
+                                            {{-- VALOR DA SESSÃO EXIBIDO EXCLUSIVAMENTE COMO RÓTULO TEXTUAL INFORMATIVO --}}
+                                            <div class="text-right border-l border-[#E1D3C1]/30 pl-6 pr-4 min-w-[95px]">
+                                                <p class="text-sm font-black text-[#8C846C]">R$ {{ number_format($session->value, 2, ',', '.') }}</p>
                                             </div>
 
                                             <div class="flex items-center border-l border-[#E1D3C1]/30 pl-4 gap-1">
-                                                {{-- FORMULÁRIO: Exclusão Simples --}}
-                                                <form id="delete-session-{{ $session->id }}" action="{{ route('sessions.destroy', $session->id) }}" method="POST">
+                                                <form id="delete-session-{{ $session->id }}" action="{{ route('sessions.destroy', $session->id) }}" method="POST" class="inline">
                                                     @csrf @method('DELETE')
-                                                    {{-- Passamos o ID e se está Pago (1 ou 0) --}}
                                                     <button type="button" onclick="confirmarExclusaoSimples({{ $session->id }}, {{ $session->status == 'pago' ? 1 : 0 }})" class="p-2 text-[#E1D3C1] hover:text-red-500 transition-colors">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                     </button>
                                                 </form>
-
-                                                {{-- FORMULÁRIO: Exclusão Recorrente (Série Futura) --}}
                                                 @if($session->is_recurrent)
-                                                    <form id="delete-recursive-{{ $session->id }}" action="{{ route('sessions.destroyRecursive', $session->id) }}" method="POST">
+                                                    <form id="delete-recursive-{{ $session->id }}" action="{{ route('sessions.destroyRecursive', $session->id) }}" method="POST" class="inline">
                                                         @csrf @method('DELETE')
-                                                        {{-- Passamos o ID e se está Pago (1 ou 0) --}}
                                                         <button type="button" onclick="confirmarExclusaoRecorrente({{ $session->id }}, {{ $session->status == 'pago' ? 1 : 0 }})" class="p-2 text-[#8C846C]/30 hover:text-orange-500 transition-colors">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                                         </button>
@@ -470,12 +580,20 @@
         </div>
     </div>
 
-    {{-- SCRIPTS DE SEGURANÇA E GERENCIAMENTO --}}
+    {{-- SCRIPTS DE SEGURANÇA E GERENCIAMENTO (PROPOSTA B CORRIGIDA) --}}
+    {{-- SCRIPTS DE SEGURANÇA E GERENCIAMENTO (PROPOSTA B CORRIGIDA) --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        const swalLydia = { confirmButtonColor: '#8C846C', cancelButtonColor: '#E1D3C1', customClass: { popup: 'rounded-[2rem]', title: 'font-serif italic text-[#8C846C]' } };
+        // --- COMPONENTES VISUAIS BASE ---
+        const swalLydia = { 
+            confirmButtonColor: '#8C846C', 
+            cancelButtonColor: '#E1D3C1', 
+            customClass: { popup: 'rounded-[2rem]', title: 'font-serif italic text-[#8C846C]' } 
+        };
+        
+        const hojeDataLocal = new Date().toISOString().split('T')[0];
 
-        // MODAL DE INTERCEPÇÃO DO PIN CLÍNICO
+        // --- MODAL DE INTERCEPÇÃO DO PIN CLÍNICO ---
         function solicitarPinClinico() {
             Swal.fire({
                 title: 'PIN de Segurança Clínica',
@@ -508,10 +626,14 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        if (!data.success) {
-                            throw new Error(data.message);
+                        if (data.success) {
+                            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                            Toast.fire({ icon: 'success', title: data.message }).then(() => {
+                                window.location.reload(); 
+                            });
+                        } else {
+                            Swal.showValidationMessage(data.message || 'PIN incorreto.');
                         }
-                        return data;
                     })
                     .catch(error => {
                         Swal.showValidationMessage(error.message);
@@ -519,22 +641,59 @@
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Recarrega a página com o estado da sessão atualizado para "autorizado"
                     window.location.reload();
                 }
             });
         }
 
-        function toggleFrequenciaProntuario(isCheck) {
-                const container = document.getElementById('container_frequencia_prontuario');
-                if (isCheck) {
-                    container.classList.remove('hidden');
-                } else {
-                    container.classList.add('hidden');
+        // --- EXCLUSÃO CIRÚRGICA DE RECIBO INDIVIDUAL (PROPOSTA B) ---
+        function confirmarExclusaoReciboIndividual(paymentId, valorFormatado) {
+            Swal.fire({
+                title: 'Remover Recibo?',
+                text: `Deseja deletar permanentemente este lançamento de R$ ${valorFormatado} do caixa? O valor devedor será recalculado de forma automática.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, Deletar',
+                cancelButtonText: 'Manter',
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#E1D3C1',
+                reverseButtons: true,
+                customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1]' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/pagamentos-registro/${paymentId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        }
+                    })
+                    .catch(error => console.error('Erro:', error));
                 }
-            }
+            });
+        }
 
-        function abrirSelecaoAnamnese() { document.getElementById('modalAnamnese').classList.remove('hidden'); }
+        // --- GERENCIAMENTO DE INTERFACE E RECORRÊNCIA ---
+        function toggleFrequenciaProntuario(isCheck) {
+            const container = document.getElementById('container_frequencia_prontuario');
+            if (isCheck) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function abrirSelecaoAnamnese() { 
+            document.getElementById('modalAnamnese').classList.remove('hidden'); 
+        }
+        
         function abrirNovoRegistro() {
             const modal = document.getElementById('modalProntuario');
             const form = document.getElementById('formEvolucao');
@@ -562,6 +721,7 @@
             modal.classList.remove('hidden');
         }
 
+        // --- CONFIRMAÇÃO DE DELEÇÃO DE NOTAS E SESSÕES ---
         function confirmarExclusaoNota(id) {
             Swal.fire({ title: 'Excluir registro?', text: "Esta ação não pode ser desfeita.", icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, excluir', ...swalLydia }).then((result) => {
                 if (result.isConfirmed) document.getElementById('delete-note-' + id).submit();
@@ -575,23 +735,12 @@
         }
 
         function confirmarExclusaoSimples(id, estaPago) {
-            // Se estiver pago, exibe o Toast e bloqueia
             if (estaPago == 1 || estaPago == '1') {
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                });
-                Toast.fire({
-                    icon: 'warning',
-                    title: 'Esta consulta já está paga e não pode ser excluída.'
-                });
-                return; // Trava o fluxo
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                Toast.fire({ icon: 'warning', title: 'Esta consulta já está paga e não pode ser excluída.' });
+                return;
             }
 
-            // Se não estiver pago, abre o fluxo de confirmação original
             Swal.fire({
                 title: 'Excluir esta sessão?', 
                 text: "Apenas este atendimento será removido.", 
@@ -603,28 +752,19 @@
                 cancelButtonText: 'Manter', 
                 customClass: { popup: 'rounded-[2.5rem] font-sans', title: 'font-serif italic' }
             }).then((result) => {
-                if (result.isConfirmed) document.getElementById('delete-session-' + id).submit();
+                if (result.isConfirmed) {
+                    document.getElementById('delete-session-' + id).submit();
+                }
             });
         }
 
         function confirmarExclusaoRecorrente(id, estaPago) {
-            // Se estiver pago, exibe o Toast e bloqueia
             if (estaPago == 1 || estaPago == '1') {
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                });
-                Toast.fire({
-                    icon: 'warning',
-                    title: 'Esta consulta já está paga e não pode ser excluída.'
-                });
-                return; // Trava o fluxo
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                Toast.fire({ icon: 'warning', title: 'Esta consulta já está paga e não pode ser excluída.' });
+                return;
             }
 
-            // Se não estiver pago, abre o fluxo de confirmação original
             Swal.fire({
                 title: 'Excluir recorrência?', 
                 text: "Isso apagará todas as sessões FUTURAS baseadas neste horário.", 
@@ -635,9 +775,156 @@
                 confirmButtonText: 'Sim, apagar futuras', 
                 customClass: { popup: 'rounded-[2.5rem] font-sans', title: 'font-serif italic' }
             }).then((result) => {
-                if (result.isConfirmed) document.getElementById('delete-recursive-' + id).submit();
+                if (result.isConfirmed) {
+                    document.getElementById('delete-recursive-' + id).submit();
+                }
             });
         }
+
+        // --- MOTOR FINANCEIRO DA PROPOSTA B (CORRIGIDO E ISOLADO) ---
+        function togglePayMenu(event, patientId) {
+            event.stopPropagation();
+            const menu = document.getElementById(`pay-menu-${patientId}`);
+            document.querySelectorAll('.popup-zap-menu').forEach(m => { if(m !== menu) m.classList.add('hidden'); });
+            if(menu) menu.classList.toggle('hidden');
+        }
+
+        function executePaymentRequest(patientId, action, dataPagamento = null) {
+            if (!dataPagamento) {
+                Swal.fire({
+                    title: 'Data do Pagamento',
+                    html: `
+                        <p class="text-xs text-gray-500 mb-4">Confirme o dia em que o pagamento integral foi recebido:</p>
+                        <input id="swal_data_integral" type="date" value="${hojeDataLocal}" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C]">
+                    `,
+                    showCancelButton: true, confirmButtonText: 'Confirmar Baixa', cancelButtonText: 'Voltar',
+                    confirmButtonColor: '#8C846C', cancelButtonColor: '#E1D3C1',
+                    customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans' },
+                    preConfirm: () => document.getElementById('swal_data_integral').value
+                }).then((dateResult) => {
+                    if (dateResult.isConfirmed) {
+                        executePaymentRequest(patientId, 'pay', dateResult.value);
+                    }
+                });
+                return;
+            }
+
+            // Bate na rota da Proposta B para processar a entrada única
+            fetch(`/pacientes/${patientId}/baixar-mes`, {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ month: '{{ $month }}', year: '{{ $year }}', paid_at: dataPagamento })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, confirmButtonColor: '#8C846C', customClass: { popup: 'rounded-[2rem]' }})
+                    .then(() => window.location.reload());
+                }
+            });
+        }
+
+        function abrirModalParcialReais(patientId, name, pendente) {
+            document.querySelectorAll('.popup-zap-menu').forEach(m => m.classList.add('hidden'));
+
+            Swal.fire({
+                title: 'Lançar Recebimento Parcial',
+                html: `
+                    <p class="text-xs text-gray-500 mb-4 text-center">Teto Restante Pendente: <b class="text-amber-600">R$ ${pendente}</b></p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-1 text-left pl-2">Valor Pago</label>
+                            <input id="swal_valor" type="text" placeholder="R$ 0,00" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C] text-lg">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-1 text-left pl-2">Data do Recebimento</label>
+                            <input id="swal_data_parcial" type="date" value="${hojeDataLocal}" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3] text-center font-bold p-3 outline-none text-[#8C846C] text-sm">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'Confirmar Lançamento', cancelButtonText: 'Voltar',
+                confirmButtonColor: '#8C846C', cancelButtonColor: '#E1D3C1',
+                customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1] p-8 font-sans', title: 'font-serif italic text-gray-800 text-xl' },
+                didOpen: () => {
+                    const input = document.getElementById('swal_valor');
+                    input.addEventListener('input', (e) => {
+                        let v = e.target.value.replace(/\D/g, "");
+                        v = (v/100).toFixed(2).replace(".", ",");
+                        v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+                        e.target.value = v ? "R$ " + v : "";
+                    });
+                },
+                preConfirm: () => {
+                    const val = document.getElementById('swal_valor').value;
+                    const date = document.getElementById('swal_data_parcial').value;
+                    if(!val) return Swal.showValidationMessage('Insira o valor recebido.');
+                    if(!date) return Swal.showValidationMessage('Insira a data do recebimento.');
+                    return { valor: val, data: date };
+                }
+            }).then((res) => {
+                if(res.isConfirmed) {
+                    let valorLimpo = res.value.valor.replace("R$ ", "").replaceAll(".", "").replace(",", ".");
+                    
+                    fetch(`/pacientes/${patientId}/baixar-parcial-reais`, {
+                        method: 'PATCH',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ month: '{{ $month }}', year: '{{ $year }}', valor_pago: valorLimpo, paid_at: res.value.data })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({ icon: 'success', title: 'Sucesso!', text: data.message, confirmButtonColor: '#8C846C' })
+                            .then(() => window.location.reload());
+                        }
+                    });
+                }
+            });
+        }
+
+        function reverterTodosOsPagamentosDoMes(patientId, name) {
+            document.querySelectorAll('.popup-zap-menu').forEach(m => m.classList.add('hidden'));
+
+            Swal.fire({
+                title: 'Estornar Caixa?',
+                text: `Deseja apagar os recibos criados e retornar as sessões de ${name} para pendente?`,
+                icon: 'warning',
+                showCancelButton: true, confirmButtonText: 'Sim, Reverter', cancelButtonText: 'Manter',
+                confirmButtonColor: '#8C846C', cancelButtonColor: '#E1D3C1',
+                reverseButtons: true,
+                customClass: { popup: 'rounded-[2.5rem] border border-[#E1D3C1]' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/pacientes/${patientId}/estornar-mes`, {
+                        method: 'PATCH',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ month: '{{ $month }}', year: '{{ $year }}' })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success) window.location.reload();
+                    });
+                }
+            });
+        }
+
+        // Fechamento automático global ao clicar fora
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.zap-dropdown-container')) {
+                document.querySelectorAll('.popup-zap-menu').forEach(m => m.classList.add('hidden'));
+            }
+        });
     </script>
 
     {{-- ESTILOS CSS REFINADOS --}}
@@ -650,5 +937,7 @@
         nav[role="navigation"] a:hover { background-color: #F9F6F3 !important; border-color: #8C846C !important; transform: translateY(-2px) !important; }
         .historico-card { background-color: white !important; }
         .indicador-pago { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background-color: #22c55e; opacity: 0.5; z-index: 20; }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
     </style>
 </x-app-layout>

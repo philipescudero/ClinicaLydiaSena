@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Session; // Certifique-se de que a model mapeia a tabela correta
+use App\Models\PatientSession; // CORREÇÃO: Alinhado para usar a model correta da agenda
 use App\Models\Patient;
+use App\Models\Payment;
 use Illuminate\Support\Facades\Auth;
 
 class PatientAreaController extends Controller
@@ -25,24 +26,45 @@ class PatientAreaController extends Controller
         // Criamos um objeto de data para facilitar a exibição e navegação
         $currentDate = \Carbon\Carbon::createFromDate($year, $month, 1);
 
-        // Carrega todas as sessões do mês selecionado
-        $allSessions = Session::where('patient_id', $patient->id)
+        // Carrega todas as sessões do mês selecionado usando a model correta
+        $allSessions = PatientSession::where('patient_id', $patient->id)
             ->whereMonth('session_date', $month)
             ->whereYear('session_date', $year)
             ->orderBy('session_date', 'asc')
             ->get();
 
-        // Calcula o faturamento total do mês
+        // 1. Soma o valor bruto total gerado pelas sessões de competência do mês escolhido
         $totalAmount = $allSessions->sum('value');
 
-        // VERIFICAÇÃO INTELIGENTE: Está pago se houver sessões E nenhuma delas estiver pendente
-        $isPaid = $allSessions->isNotEmpty() && !$allSessions->where('status', 'pendente')->isNotEmpty();
+        // 2. Soma tudo o que o paciente já pagou para este respectivo mês de referência na tabela payments
+        $totalPagoEmRecibos = Payment::where('patient_id', $patient->id)
+            ->where('reference_month', $month)
+            ->where('reference_year', $year)
+            ->sum('amount');
+
+        // 3. Calcula o valor líquido que ele de fato ainda deve pagar
+        $restantePendente = $totalAmount - $totalPagoEmRecibos;
+        $restantePendente = $restantePendente > 0 ? $restantePendente : 0;
+
+        // Define o status booleano esperado pelo botão Pix e badges do front-end
+        $isPaid = ($restantePendente <= 0 && $totalAmount > 0);
+
+        // 4. Coleta o histórico de entradas unitárias deste mês de competência para renderizar o Extrato
+        $historicoPagamentos = Payment::where('patient_id', $patient->id)
+            ->where('reference_month', $month)
+            ->where('reference_year', $year)
+            ->orderBy('payment_date', 'desc')
+            ->get();
 
         return view('patients.area_paciente', compact(
             'allSessions', 
             'totalAmount',
+            'restantePendente',
             'currentDate',
-            'isPaid' // <--- Nova variável limpa enviada para a View
+            'isPaid',
+            'historicoPagamentos',
+            'month',
+            'year'
         ));
     }
 }

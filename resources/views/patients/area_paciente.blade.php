@@ -36,37 +36,68 @@
                 
                 {{-- Coluna 1: Financeiro --}}
                 {{-- Coluna 1: Financeiro --}}
-                <div class="bg-white p-10 rounded-[3rem] border border-[#E1D3C1] shadow-sm flex flex-col justify-between h-full min-h-[420px]">
+                {{-- Coluna 1: Financeiro Refinado com Extrato Transparente --}}
+                <div class="bg-white p-10 rounded-[3rem] border border-[#E1D3C1] shadow-sm flex flex-col justify-between h-full min-h-[460px]">
                     
-                    {{-- TODO O BLOCO @php MANUAL DE CONSULTA FOI REMOVIDO DAQUI --}}
-
                     <div>
-                        <h3 class="text-[10px] uppercase font-black text-[#8C846C]/60 tracking-widest mb-10 font-sans">Financeiro do Mês</h3>
-                        <div class="flex items-baseline gap-2">
-                            <span class="text-gray-400 text-lg italic">R$</span>
-                            <span class="text-6xl text-gray-800 tracking-tighter font-sans">{{ number_format($totalAmount, 2, ',', '.') }}</span>
+                        <h3 class="text-[10px] uppercase font-black text-[#8C846C]/60 tracking-widest mb-6 font-sans">Financeiro do Mês</h3>
+                        
+                        {{-- Métrica Dinâmica de Saldos Cruzados --}}
+                        <div class="grid grid-cols-2 gap-4 border-b border-[#F9F6F3] pb-6 mb-6">
+                            <div>
+                                <p class="text-[#8C846C]/40 uppercase text-[8px] font-black tracking-widest mb-1">Total Consultas</p>
+                                <p class="text-xl font-bold text-gray-700 font-sans">R$ {{ number_format($totalAmount, 2, ',', '.') }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[#8C846C]/40 uppercase text-[8px] font-black tracking-widest mb-1">Valor Pendente</p>
+                                <p class="text-xl font-bold {{ $restantePendente > 0 ? 'text-amber-500 animate-pulse' : 'text-green-600' }} font-sans">
+                                    R$ {{ number_format($restantePendente, 2, ',', '.') }}
+                                </p>
+                            </div>
                         </div>
-                        <p class="mt-4 text-[11px] text-gray-400 italic font-sans">Referente às sessões de {{ $currentDate->translatedFormat('F') }}</p>
+
+                        {{-- Extrato de Entradas Transparente para o Paciente --}}
+                        <div class="mb-6">
+                            <p class="text-[#8C846C]/50 uppercase text-[8px] font-black tracking-widest mb-2 pl-1">Seus Pagamentos Registrados</p>
+                            <div class="space-y-1.5 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
+                                @forelse($historicoPagamentos ?? [] as $pagamento)
+                                    <div class="flex items-center justify-between p-2 bg-green-50/30 border border-green-100/50 rounded-xl text-[11px] font-sans">
+                                        <div class="flex items-center gap-1.5 text-gray-600">
+                                            <div class="w-1 h-1 rounded-full bg-green-500"></div>
+                                            <span class="font-medium">{{ $pagamento->type === 'integral' ? 'Baixa Integral' : 'Abatimento Parcial' }}</span>
+                                        </div>
+                                        <div class="text-right flex items-center gap-2">
+                                            <span class="font-black text-green-700">R$ {{ number_format($pagamento->amount, 2, ',', '.') }}</span>
+                                            <span class="text-[9px] text-gray-400 font-medium">({{ \Carbon\Carbon::parse($pagamento->payment_date)->format('d/m/y') }})</span>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="text-center py-4 text-[10px] text-[#8C846C]/40 italic bg-[#F9F6F3]/30 rounded-xl border border-dashed border-[#E1D3C1]/30">
+                                        Nenhum pagamento computado para este período.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
                     </div>
                     
                     <div>
-                        {{-- Botão de Pix (Aparece apenas se não estiver pago e houver valor) --}}
-                        @if(!$isPaid && $totalAmount > 0)
-                            <button onclick="gerarPagamentoPix('{{ $totalAmount }}')" 
-                                    class="w-full mb-6 bg-[#8C846C] text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2 font-sans">
+                        {{-- Botão de Pix Dinâmico: Cobra estritamente o $restantePendente devido --}}
+                        @if(!$isPaid && $restantePendente > 0)
+                            <button onclick="gerarPagamentoPix('{{ $restantePendente }}')" 
+                                    class="w-full mb-6 bg-[#8C846C] text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2 font-sans cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4"></path></svg>
-                                Pagar com Pix
+                                Pagar com pix
                             </button>
                         @endif
 
-                        <div class="pt-8 border-t border-[#F9F6F3] flex justify-between items-center">
+                        <div class="pt-6 border-t border-[#F9F6F3] flex justify-between items-center">
                             @if($isPaid)
                                 <span class="px-5 py-2 bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-widest rounded-full font-sans border border-green-100 shadow-sm">
-                                    Pagamento Realizado
+                                    Mês Quitado
                                 </span>
                             @else
-                                <span class="px-5 py-2 bg-[#FDF2F4] text-[#D4AFB9] text-[9px] font-black uppercase tracking-widest rounded-full font-sans">
-                                    Aguardando Pagamento
+                                <span class="px-5 py-2 bg-amber-50/60 text-amber-600 border border-amber-100 text-[9px] font-black uppercase tracking-widest rounded-full font-sans shadow-sm">
+                                    Aguardando Acerto
                                 </span>
                             @endif
 

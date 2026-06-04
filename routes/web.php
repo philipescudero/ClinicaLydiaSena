@@ -65,14 +65,17 @@ Route::middleware('auth')->group(function () {
         Route::patch('/pacientes/{patient}/baixar-mes', [PatientController::class, 'marcarMesComoPago'])->name('patients.payMonth');
         Route::patch('/pacientes/{patient}/estornar-mes', [PatientController::class, 'estornarMes'])->name('patients.refundMonth');
         Route::post('/pacientes/{patient}/mark-whatsapp-sent', [PatientController::class, 'markWhatsappSent'])->name('patients.markWhatsappSent');
-
+        Route::delete('/pagamentos-registro/{id}', [App\Http\Controllers\PatientController::class, 'destroyPayment'])->name('payments.destroyIndividual');
         # --- SESSÕES E NOTAS ---
         // ... (Mantidas as rotas internas de sessões)
         Route::put('/sessoes/{session}', [SessionController::class, 'update'])->name('sessions.update');
+        Route::delete('/sessoes/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
         Route::post('/pacientes/{patient}/sessoes', [SessionController::class, 'store'])->name('sessions.store');
         Route::post('/patients/{patient}/notes', [ProgressNoteController::class, 'store'])->name('notes.store');
         Route::put('/notes/{note}', [ProgressNoteController::class, 'update'])->name('notes.update');
         Route::delete('/notes/{note}', [ProgressNoteController::class, 'destroy'])->name('notes.destroy');
+        Route::patch('/pacientes/{patient}/baixar-parcial', [SessionController::class, 'storePartialPayment'])->name('sessions.pay_partial');
+        Route::patch('/pacientes/{patient}/baixar-parcial-reais', [App\Http\Controllers\SessionController::class, 'storePartialPaymentInReais']);
 
         Route::patch('/sessoes/{session}/realizado', [SessionController::class, 'markPerformed'])->name('sessions.markPerformed');
         Route::patch('/sessoes/{session}/reverter-realizado', [SessionController::class, 'reversePerformed'])->name('sessions.reversePerformed');
@@ -113,12 +116,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/pacientes/{patient}/anamnese-adulto-pdf', [AdultAnamnesisController::class, 'exportPdf'])->name('anamnese.psico.adulto.pdf');
         Route::delete('/anamnese-adulto/{anamnesis}', [AdultAnamnesisController::class, 'destroy'])->name('anamnese.psico.adulto.destroy');
 
+        # --- CONFIGURAÇÕES ---
         // Página principal de configurações
         Route::get('/configuracoes', [SettingController::class, 'index'])->name('settings.index');
 
         // Ação de trocar senha em massa
-        Route::post('/configuracoes/senha-global', [SettingController::class, 'updateGlobalPassword'])
-            ->name('settings.password.global');
+        Route::post('/configuracoes/senha-global', [SettingController::class, 'updateGlobalPassword'])->name('settings.password.global');
 
         Route::get('/configuracoes/clinica', [SettingController::class, 'editClinic'])->name('settings.clinic.edit');
         Route::post('/configuracoes/clinica', [SettingController::class, 'updateClinicData'])->name('settings.clinic.update');
@@ -127,6 +130,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/configuracoes/equipe', [SettingController::class, 'storeAdmin'])->name('settings.admins.store');
         Route::delete('/configuracoes/equipe/{id}', [SettingController::class, 'destroyAdmin'])->name('settings.admins.destroy');
         Route::get('/configuracoes/backup', [SettingController::class, 'generateBackup'])->name('settings.backup');
+
+        # --- SISTEMA DE ENTRADAS CONSOLIDADAS (PROPOSTA B) ---
+        // Disparado pela modal flutuante da listagem para criar o recibo individual de caixa
+        Route::post('/patients/{patient}/pay-integral', [PatientController::class, 'registrarPagamentoIntegral'])->name('patients.pay-integral');
     });
 });
 
