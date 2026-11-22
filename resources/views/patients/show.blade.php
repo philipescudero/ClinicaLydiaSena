@@ -142,7 +142,6 @@
                                                         {{ \Carbon\Carbon::parse($pagamento->payment_date)->format('d/m/Y') }}
                                                     </p>
                                                 </div>
-                                                
                                                 {{-- BOTÃO DA LIXEIRA INDIVIDUAL --}}
                                                 <button type="button" onclick="confirmarExclusaoReciboIndividual('{{ $pagamento->id }}', '{{ number_format($pagamento->amount, 2, ',', '.') }}')" 
                                                         class="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all duration-200 opacity-0 group-hover/item:opacity-100 cursor-pointer" title="Excluir este recibo">
@@ -292,6 +291,7 @@
                 {{-- Coluna Direita: Histórico e Notas Clínicas --}}
                 <div class="md:col-span-2 space-y-8">
                     {{-- HISTÓRICO DE ATENDIMENTOS --}}
+                    {{-- HISTÓRICO DE ATENDIMENTOS --}}
                     <div class="mb-6">
                         <div class="flex justify-between items-center border-b border-[#F9F6F3] pb-4">
                             <h3 class="text-xl font-serif italic text-[#8C846C]">Histórico de Atendimentos</h3>
@@ -346,7 +346,6 @@
                                         </div>
 
                                         <div class="flex items-center gap-6">
-                                            {{-- Controle de Confirmação Clínica do Horário --}}
                                             <div class="flex flex-col items-center">
                                                 <form action="{{ route('sessions.markPerformed', $session->id) }}" method="POST">
                                                     @csrf @method('PATCH')
@@ -359,12 +358,20 @@
                                                 </span>
                                             </div>
 
-                                            {{-- VALOR DA SESSÃO EXIBIDO EXCLUSIVAMENTE COMO RÓTULO TEXTUAL INFORMATIVO --}}
                                             <div class="text-right border-l border-[#E1D3C1]/30 pl-6 pr-4 min-w-[95px]">
                                                 <p class="text-sm font-black text-[#8C846C]">R$ {{ number_format($session->value, 2, ',', '.') }}</p>
                                             </div>
 
                                             <div class="flex items-center border-l border-[#E1D3C1]/30 pl-4 gap-1">
+                                                {{-- BOTÃO EDITAR ADICIONADO --}}
+                                                <button type="button" 
+                                                        onclick="abrirModalEdicao('{{ $session->id }}', '{{ $session->session_date->format('Y-m-d') }}', '{{ $session->session_date->format('H:i') }}', '{{ $session->service_type }}', '{{ $session->value }}', '{{ $patient->id }}', 'tabela')" 
+                                                        class="p-2 text-[#E1D3C1] hover:text-blue-500 transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+
                                                 <form id="delete-session-{{ $session->id }}" action="{{ route('sessions.destroy', $session->id) }}" method="POST" class="inline">
                                                     @csrf @method('DELETE')
                                                     <button type="button" onclick="confirmarExclusaoSimples({{ $session->id }}, {{ $session->status == 'pago' ? 1 : 0 }})" class="p-2 text-[#E1D3C1] hover:text-red-500 transition-colors">
@@ -386,7 +393,6 @@
                             </div>
                         @endif
                     </div>
-
                     {{-- CARD: EVOLUÇÃO CLÍNICA (Totalmente Blindado por CSS/Blur caso não autorizado) --}}
                     <div class="bg-white rounded-[3rem] p-8 border border-[#E1D3C1] shadow-sm relative">
                         <div class="flex justify-between items-center mb-8 border-b border-[#F9F6F3] pb-4">
@@ -461,7 +467,7 @@
                 </button>
             </div>
             
-            <form action="{{ route('sessions.store', $patient->id) }}" method="POST" class="space-y-6">
+            <form action="{{ route('sessions.store', $patient->id) }}" method="POST" id="form_nova_sessao" class="space-y-6">
                 @csrf
                 
                 {{-- Seleção do Dia da Semana --}}
@@ -925,6 +931,68 @@
                 document.querySelectorAll('.popup-zap-menu').forEach(m => m.classList.add('hidden'));
             }
         });
+        // --- FUNÇÃO DE ABERTURA DO MODAL DE EDIÇÃO ---
+    // --- FUNÇÃO DE ABERTURA DO MODAL ---
+    function abrirModalEdicao(id, data, hora, tipoServico, valor, pacienteId, origem) {
+        const form = document.getElementById('form_edicao_consulta');
+        form.action = `/sessoes/${id}`;
+        
+        document.getElementById('input_edit_data').value = data;
+        document.getElementById('input_edit_hora').value = hora;
+        document.getElementById('service_selector_edit').value = tipoServico;
+        document.getElementById('price_edit').value = parseFloat(valor).toFixed(2);
+        document.getElementById('edit_patient_id').value = pacienteId;
+        
+        const linha = document.getElementById(`sessao-row-${id}`);
+        const nomePaciente = linha ? linha.querySelector('.nome-paciente-tabela').innerText : 'Paciente';
+        document.getElementById('edit_patient_name').value = nomePaciente;
+
+        document.getElementById('modalEdicaoConsulta').classList.remove('hidden');
+    }
+
+    function fecharModalEdicao() {
+        document.getElementById('modalEdicaoConsulta').classList.add('hidden');
+    }
+
+    // --- DELEGAÇÃO DE EVENTOS (Resolve o erro do addEventListener) ---
+    // --- DELEGAÇÃO DE EVENTOS PARA CRIAÇÃO E EDIÇÃO ---
+    document.addEventListener('submit', function(e) {
+        // Verifica se é o formulário de Edição OU de Nova Sessão
+        if (e.target && (e.target.id === 'form_edicao_consulta' || e.target.id === 'form_nova_sessao')) {
+            e.preventDefault();
+            const form = e.target;
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(res => {
+                if (res.status === 200 || res.status === 201) {
+                    // SUCESSO
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'Sucesso!', 
+                        text: res.body.message || 'Operação realizada com sucesso!',
+                        confirmButtonColor: '#8C846C',
+                        timer: 1500
+                    }).then(() => window.location.reload());
+                } else {
+                    // ERRO (Conflito de agenda capturado aqui!)
+                    Swal.fire({ 
+                        icon: 'error', 
+                        title: 'Atenção', 
+                        text: res.body.message || 'Erro ao processar agendamento.',
+                        confirmButtonColor: '#8C846C'
+                    });
+                }
+            })
+            .catch(err => {
+                Swal.fire({ icon: 'error', title: 'Erro', text: 'Erro de conexão.' });
+            });
+        }
+    });
     </script>
 
     {{-- ESTILOS CSS REFINADOS --}}
@@ -940,4 +1008,44 @@
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
     </style>
+
+        <div id="modalEdicaoConsulta" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[120] px-4">
+            <div class="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-[#E1D3C1] text-left">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-2xl font-serif italic text-[#8C846C]">Editar Consulta</h3>
+                    <button type="button" onclick="fecharModalEdicao()" class="text-[#E1D3C1] hover:text-[#8C846C] transition">✕</button>
+                </div>
+                <form id="form_edicao_consulta" method="POST" class="space-y-6">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="patient_id" id="edit_patient_id">
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-2">Paciente</label>
+                        <input type="text" id="edit_patient_name" readonly class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3]/50 text-sm font-bold text-gray-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-2">Data</label>
+                            <input type="date" name="session_date" id="input_edit_data" required class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3]/50 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-2">Hora</label>
+                            <input type="time" name="session_time" id="input_edit_hora" required class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3]/50 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-2">Serviço</label>
+                        <select name="service_type" id="service_selector_edit" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3]/50 text-sm">
+                            <option value="1">Psicoterapia</option>
+                            <option value="2">Avaliação</option>
+                            <option value="3">Consultoria</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-[#8C846C]/60 mb-2">Valor (R$)</label>
+                        <input type="number" name="value" id="price_edit" step="0.01" class="w-full rounded-xl border-[#E1D3C1] bg-[#F9F6F3]/50 text-sm">
+                    </div>
+                    <button type="submit" class="w-full bg-[#8C846C] text-white py-4 rounded-2xl font-bold uppercase text-xs tracking-widest shadow-lg hover:bg-[#766f5a] transition">Salvar Alterações</button>
+                </form>
+            </div>
+    </div>
 </x-app-layout>

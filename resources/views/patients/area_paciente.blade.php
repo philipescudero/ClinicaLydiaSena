@@ -6,7 +6,7 @@
             <div class="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div class="text-left">
                     <h2 class="text-4xl text-gray-800 italic">Olá, {{ Auth::user()->name }}</h2>
-                    <p class="text-[#8C846C]/60 text-[10px] font-black uppercase tracking-[0.3em] mt-3 font-sans">Seu Espaço de Cuidado e Acompanhamento</p>
+                    <p class="text-[#8C846C]/60 text-[se] font-black uppercase tracking-[0.3em] mt-3 font-sans">Seu Espaço de Cuidado e Acompanhamento</p>
                 </div>
 
                 {{-- Seletor de Período --}}
@@ -81,7 +81,8 @@
                     </div>
                     
                     <div>
-                        {{-- Botão de Pix Dinâmico: Cobra estritamente o $restantePendente devido --}}
+                        {{-- Botão de Pix Dinâmico: Cobra estritamente o $restantePendente devido
+                             DESATIVADO A PEDIDO DA CLIENTE (manter comentado até reativação futura)
                         @if(!$isPaid && $restantePendente > 0)
                             <button onclick="gerarPagamentoPix('{{ $restantePendente }}')" 
                                     class="w-full mb-6 bg-[#8C846C] text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2 font-sans cursor-pointer">
@@ -89,8 +90,15 @@
                                 Pagar com pix
                             </button>
                         @endif
+                        --}}
 
-                        <div class="pt-6 border-t border-[#F9F6F3] flex justify-between items-center">
+                        @if(!$isPaid && $restantePendente > 0)
+                            <div class="w-full mb-6 bg-[#F9F6F3] border border-[#E1D3C1] text-[#8C846C] py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-center font-sans">
+                                Para efetuar o pagamento, fale conosco pelo WhatsApp
+                            </div>
+                        @endif
+
+                        <div class="pt-6 border-t border-[#F9F6F3] flex justify-center items-center">
                             @if($isPaid)
                                 <span class="px-5 py-2 bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-widest rounded-full font-sans border border-green-100 shadow-sm">
                                     Mês Quitado
@@ -101,9 +109,11 @@
                                 </span>
                             @endif
 
+                            {{-- Link "Enviar Comprovante" desativado a pedido da cliente
                             <a href="https://wa.me/553587042011" target="_blank" class="text-[10px] font-black uppercase text-[#8C846C] hover:text-gray-800 tracking-widest font-sans transition-colors">
                                 Enviar Comprovante →
                             </a>
+                            --}}
                         </div>
                     </div>
                 </div>
@@ -138,7 +148,7 @@
                     </div>
 
                     <div class="mt-8 pt-6 border-t border-white/10">
-                        <a href="https://www.google.com/maps/search/?api=1&query=R.+Sete+de+Setembro,+923+Muzambinho+MG" target="_blank" 
+                        <a href="https://www.google.com/maps/search/?api=1&query=Av.+Dr.+Américo+Luz,+245+-+Centro,+Muzambinho+-+MG" target="_blank" 
                            class="flex justify-center items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] bg-white text-[#8C846C] py-4 rounded-2xl hover:bg-[#F9F6F3] transition-all font-sans shadow-lg">
                             Localização da Clínica
                         </a>
@@ -152,7 +162,7 @@
                 <p class="text-[10px] font-black uppercase tracking-[0.3em] text-[#8C846C]/40 mb-6">Dúvidas ou Reagendamentos?</p>
                 <div class="flex flex-col md:flex-row justify-center items-center gap-6 md:gap-12 text-[#8C846C] text-[11px] font-bold tracking-wider">
                     <span> (35) 98704-2011 </span>
-                    <span class="uppercase"> R. Sete de Setembro, 923 - Muzambinho </span>
+                    <span class="uppercase"> Av. Américo Luz, 245. Sala 06. Centro - Muzambinho </span>
                 </div>
             </div>
         </div>

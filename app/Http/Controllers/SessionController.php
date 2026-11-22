@@ -7,6 +7,7 @@ use App\Models\PatientSession;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Payment;
+use Illuminate\Support\Facades\Validator;
 
 class SessionController extends Controller
 {
@@ -23,6 +24,16 @@ class SessionController extends Controller
         // 1. Unificamos Data e Hora inicial
         $startDate = Carbon::parse($request->session_date . ' ' . $request->session_time);
         
+        // No início do seu store, após o validate():
+        $validator = Validator::make($request->all(), [
+            'session_date' => 'required|date',
+            // ... seus outros campos
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Preencha todos os campos obrigatórios.'], 422);
+        }
+
         // CORREÇÃO: Define o fim do ano baseado estritAMENTE na data da consulta escolhida no input
         $endOfYear = $startDate->copy()->endOfYear();
 
@@ -132,12 +143,18 @@ class SessionController extends Controller
 
         $dateTimeSolicitado = Carbon::parse($request->session_date . ' ' . $request->session_time)->toDateTimeString();
 
-        $conflitoExistente = PatientSession::where('session_date', $dateTimeSolicitado)
-            ->where('id', '!=', $session->id)
-            ->exists();
+        // BUSCA O CONFLITO E CARREGA O PACIENTE RELACIONADO
+        $conflito = PatientSession::with('patient')
+            ->where('session_date', $dateTimeSolicitado)
+            ->where('id', '!=', $session->id) // Ignora a própria sessão sendo editada
+            ->first();
 
-        if ($conflitoExistente) {
-            $msgErro = 'Ops! Já existe um atendimento marcado para este dia e horário.';
+        if ($conflito) {
+            $nomePacienteConflito = $conflito->patient ? $conflito->patient->name : 'Outro paciente';
+            $dataFormatada = Carbon::parse($dateTimeSolicitado)->format('d/m/Y');
+            $horaFormatada = Carbon::parse($dateTimeSolicitado)->format('H:i');
+            
+            $msgErro = "Ops! Já existe um atendimento marcado para o dia {$dataFormatada} às {$horaFormatada} para o paciente: {$nomePacienteConflito}.";
             
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $msgErro], 422);
@@ -153,10 +170,10 @@ class SessionController extends Controller
         ]);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Agendamento updated com sucesso!']);
+            return response()->json(['success' => true, 'message' => 'Agendamento atualizado com sucesso!']);
         }
 
-        return redirect()->back()->with('success', 'Agendamento updated com sucesso!');
+        return redirect()->back()->with('success', 'Agendamento atualizado com sucesso!');
     }
 
     public function destroy(PatientSession $session) 
